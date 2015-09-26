@@ -1,0 +1,12 @@
+#include </lib/rmk/rmk_type.l>
+#include </lib/rmk/rmk_base.l>
+#include </lib/rmk/rmk_base.h>
+#include </lib/rmk/rmk_dev.h>
+#include </lib/rmk/rmk_dt.l>
+#include </lib/rmk/rmk_dt.h>
+#include </lib/rmk/rmk_ex.l>
+#include </lib/rmk/rmk_dev.l>
+#include </lib/rmk/rmk_mp.l>
+#include </lib/rmk/rmk_is.l>
+#include </lib/rmk/rmk_is.h>
+#include <i386.h>
