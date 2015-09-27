@@ -376,7 +376,7 @@ void MessageManager(Header_t *PassedRequest)
 #else
 			das_printf ("Get Embedded Info from PC request\n");
 
-		    version_string = "TOPCVC2402";
+		    version_string = "TOPCVC3507";
 			strncpy( ((GetEmbeddedInfoRes_t *)&Response)->SoftwareVersion,
 					 (const char *)version_string, 40);
 #endif
