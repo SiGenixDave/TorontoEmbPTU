@@ -45,7 +45,7 @@ extern "C" {
 #define ASYNC_SOM       ';'
 #define MOTOROLA_SOM    'S'
 
-#define WATCHSIZE                   20
+#define WATCHSIZE                   40
 
 /* LILLE - AC DRIVE PROPULSION */
 #ifdef LILLE
