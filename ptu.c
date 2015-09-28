@@ -156,12 +156,9 @@ void PTUMain(void)
 {
   INT_16 get_char_status;
 
-  //os_io_printf("PTUmain in\n");
   /* Call GetPTUKey to see if a character has been received at the */
   /* serial port.                                                  */
   get_char_status = GetPTUChar();
-  //os_io_printf("PTUmain out\n");
-
 }
 
 /****************************************************************************
@@ -358,16 +355,6 @@ INT_16 ptu_init(void)
 *****************************************************************************/
 INT_16 GetPTUChar(void)
 {
-
-	INT_8  Recv_SOM;
-	INT_8  Send_SOM;		
-	INT_16 NOB;
-	INT_16 NOB_RCV = 0;
-	INT_16 i;
-	INT_16 retVal = 0;
-	fd_set 	readFds;
-	IP_TIMEVAL timeout;
-
     /*  If a SOM is available at the PTU serial port... */
     if (tgetc(PTUCHANNEL) == SYNC_SOM)
     {
@@ -382,90 +369,6 @@ INT_16 GetPTUChar(void)
             MessageManager((Header_t *)&Request);
          }
     }
-#if 0
-	else
-	{
-		/* Initialize monitoring parameters */
-		FD_ZERO(&readFds);
-		FD_SET(tcpip.socket_id, &readFds);
-		timeout.tv_sec = TCP_SOCKET_TIMEOUT;
-		timeout.tv_usec = 0;
-
-		/*Get SYNC_SOM on TCP/IP port*/
-		if (tcpip.status == OK)
-		{
-			retVal = os_ip_select((tcpip.socket_id + 1), &readFds, (fd_set *) 0, (fd_set *) 0, &timeout);
-	
-			debugPrintf ("After select; TCP OK\n");
-			if (retVal > 0)
-			{
-				debugPrintf ("retVal > 0\n");
-				/* Data has been received on socket. Read it */
-				NOB_RCV = os_ip_recv (tcpip.socket_id, &Recv_SOM, 1, 0);
-			}
-		}
-
-		/* Check to see if data has been recevied. If not => close connection */
-		if (NOB_RCV > 0)
-		{
-			debugPrintf ("NOB_RCV > 0\n");
-			/* Data received. Process it. */
-			if (Recv_SOM == SYNC_SOM) 
-			{
-				debugPrintf ("Recv_SOM == SYNC_SOM\n");
-				Send_SOM = THE_SOM;
-				/*  Send a Start Of Message out to ethernet port. */
-				NOB = os_ip_send (tcpip.socket_id, (const char*)&Send_SOM, 1, 0);
-
-				/*Get the PTU packet*/
-				if (TCPIP_GetDataPacket ((Header_t *)&Request))
-				{
-					/* If a smart PTU packet has been received, set comm_type to TCP/IP	*/
-					/* call Message_Manager to process the packet.		                */
-				   
-					ComDevice = TCPIP;
-					MessageManager ((Header_t *)&Request);
-				}
-			}
-		}
-		else
-		{
-			/* No data received, socket timeout or socket error */
-			if (tcpip.status == OK)
-			{
-				/* IP socket is initialized but is not in use. */
-				/* Close current connection. */
-				os_ip_close (tcpip.socket_id);
-
-				/* Remove the socket from the list. */
-				FD_CLR(tcpip.socket_id, &masterFds);
-
-				/* Set socket status parameter */
-				tcpip.status = ERROR;
-			}
-			else
-			{
-				/* No active socket exist. */
-				/* Perform housekeeping procedure by closing all other open */
-				/* IP sockets except the original listener socket. */
-				for (i = 0; i <= fdMax; i++)
-				{
-					/* Step through all known socket ids one by one */
-					if (FD_ISSET(i, &masterFds))
-					{
-						/* Found a socket id. Close it and remove it from the list. */
-						/* But exclude the listener socket. */
-						if (i != socket_id)
-						{
-							os_ip_close(i);
-							FD_CLR(i, &masterFds);
-						}
-					}
-				}
-			}
-		}
-	}
-#endif
     TransactionCounter++;
 
     return((INT_16)0);
