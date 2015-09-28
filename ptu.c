@@ -102,15 +102,6 @@ INT_16                  CurrentEventLog;
 extern MaxResponse_t DATAFARTYPE            Response;
 extern MaxRequest_t DATAFARTYPE             Request;
 
-extern TCPIP_INFO tcpip;
-extern INT_16 socket_id;
-extern INT_16 new_socket_id;
-extern fd_set masterFds;
-extern INT_16 fdMax;
-
-extern struct		sockaddr_in		ClientAddress;
-extern int			sockAddrSize;
-
 /* Initialized to TCPIP */
 UINT_16 ComDevice;
 
@@ -562,7 +553,7 @@ void TransmitMessage(   Header_t        *PassedResponse,
 
 			Send_SOM = THE_SOM;
 
-			clientSocket = GetActiveClientSocket();
+			clientSocket = TCPGetActiveClientSocket();
 
 			/*  Send a Start Of Message out to ethernet port. */
 			os_ip_send (clientSocket, (const char*)&Send_SOM, 1, 0);
@@ -626,7 +617,7 @@ void TransmitACK(void)
 			break;
 
 		case TCPIP: /*Transmit PTU_ACK via TCP/IP*/
-			os_ip_send(GetActiveClientSocket(),(const char*)&TxACK, 1, 0);
+			os_ip_send(TCPGetActiveClientSocket(),(const char*)&TxACK, 1, 0);
 			break;
 		
 		default:

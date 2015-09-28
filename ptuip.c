@@ -59,31 +59,17 @@
 	#include "ptuip.h"
 #endif
 
-/* Variable declarations */
-TCPIP_INFO tcpip;
-INT_16 socket_id;
-INT_16 new_socket_id = ERROR;
-
-fd_set masterFds;
-INT_16 fdMax = 0;
-
-INT_16 tcp_task_run = TRUE;
-
-INT_16 ServerSocket = 0;
-INT_16 ClientSocket = 0;
-
-INT_16 serverPortNo = SERVER_PORT_NUM;
-
 extern MaxResponse_t DATAFARTYPE            Response;
 extern MaxRequest_t DATAFARTYPE             Request;
 extern UINT_16 ComDevice;
 
-///////////////////////////////////////////////////////////////////////////////////////
+/*************************************************************************************/
 
-#define MAX_CLIENTS_PER_SERVER				50
-#define MAX_INITIAL_SERVER_SOCKETS			20
+#define MAX_CLIENTS_PER_SERVER				10
+#define MAX_INITIAL_SERVER_SOCKETS			5
+#define TCP_RX_BUFFER_SIZE					4096
 
-///////////////////////////////////////////////////////////////////////////////////////
+/*************************************************************************************/
 typedef void TCPServerCallbackFunc(char *aBuffer, int aNumBytes, int aClientSocketId);
 
 typedef struct
@@ -95,24 +81,33 @@ typedef struct
 	int clientSockets[MAX_CLIENTS_PER_SERVER];
 } ServerSocketInfo;
 
-///////////////////////////////////////////////////////////////////////////////////////
-static int mNumServerSockets;
-static int mMaxNumServerSockets;
-static int mCurrentClientSocket;
+typedef enum
+{
+	WAIT_FOR_SOM,
+	WAIT_FOR_COMMAND,
+
+} PtuIpStates;
+
+
+/*************************************************************************************/
+static PtuIpStates mStateMachineIP = WAIT_FOR_SOM;
+static UINT_16 mNumServerSockets;
+static UINT_16 mMaxNumServerSockets;
+static INT_16 mCurrentClientSocket;
 static ServerSocketInfo *mServers;
-static fd_set mReadfds; //set of socket descriptors
+static fd_set mReadfds;
 static struct timeval mTimer;
 static struct timeval *mTimerPtr;
 
 
-///////////////////////////////////////////////////////////////////////////////////////
+/*************************************************************************************/
 static void TCPInitConnections (void);
 static void TCPSetBlockingTime (long int aSeconds, long int aMicroSeconds);
 static void TCPServiceIncomingSocketData (void);
-static int TCPPopulateSocketDescriptorList (void);
+static INT_16 TCPPopulateSocketDescriptorList (void);
 static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aCallBackFunc);
 static void TCPScanForNewConnections (void);
-static void TCPServerCallback5001 (char *aBuffer, int aNumBytes, int aClientSocketId);
+static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocketId);
 
 
 /**********************************************************************
@@ -143,117 +138,8 @@ static void TCPServerCallback5001 (char *aBuffer, int aNumBytes, int aClientSock
 *****************************************************************************/
 void TCP_Init(void)
 {
-
     TCPInitConnections();
-
-    TCPCreateServerSocket (5001, TCPServerCallback5001);
-
-#if 0
-    INT_32 SockOpt;
-	INT_16 temp_socket_id;
-	sockAddrSize = sizeof (struct sockaddr_in);
-	UINT_16 port_num = serverPortNo;
-
-    /* -- set up server */
-	FD_ZERO((char *) &ServerAddress);
-    ServerAddress.sin_family      = AF_INET;
-    ServerAddress.sin_port        = htons(port_num);
-    ServerAddress.sin_addr.s_addr = htonl(0x00000000);
-
-    /* -- set up client */
-	FD_ZERO((char *) &ClientAddress);
-    ClientAddress.sin_family      = AF_INET;
-    ClientAddress.sin_port        = htons(port_num);
-    ClientAddress.sin_addr.s_addr = htonl(0x00000000);
-
-    /* Create a socket for incomming requests. */
-    ServerSocket = os_ip_socket(AF_INET, SOCK_STREAM, 0);
-
-    if (ServerSocket == ERROR)
-    {
-		os_io_printf ("socket error (errno = %i)\r\n", os_errno );
- 		os_io_printf("\r\nSOCKET_CREATION_FAILURE, ServerAddress sin_addr.s_addr %ld: ", ServerAddress.sin_addr.s_addr);
-		temp_socket_id = ERROR;
-
-	}
-
-    /* Set up Socket Options to reuse socket address*/
-    SockOpt = TRUE;
-	if (os_ip_setsockopt(ServerSocket, SOL_SOCKET, SO_REUSEADDR,(INT_8 *)&SockOpt, sizeof(SockOpt)) == ERROR)
-	{
-    	os_ip_shutdown(ServerSocket, 2);
-		os_ip_close(ServerSocket);
-	    temp_socket_id = ERROR;
-	}
-
-    /*Specify the size of receive buffer*/
-    SockOpt = MAX_SEND_BUFF_SIZE;
-	if (os_ip_setsockopt(ServerSocket, SOL_SOCKET, SO_RCVBUF,(INT_8 *)&SockOpt, sizeof (SockOpt)) == ERROR)
-	{
-    	os_ip_shutdown(ServerSocket, 2);
-		os_ip_close(ServerSocket);
-		temp_socket_id = ERROR;
-	}
-
-	/*Specify the size of send buffer*/
-    SockOpt = MAX_RECV_BUFF_SIZE;
-    if (os_ip_setsockopt(ServerSocket, SOL_SOCKET, SO_SNDBUF,(INT_8 *)&SockOpt, sizeof (SockOpt)) == ERROR)
-	{
-    	os_ip_shutdown(ServerSocket, 2);
-		os_ip_close(ServerSocket);
-		temp_socket_id = ERROR;
-	}
-
-	/*Deliver Messages Immediately*/
-	SockOpt = TRUE;
-	if (os_ip_setsockopt(ServerSocket, IPPROTO_TCP, TCP_NODELAY,(INT_8 *)&SockOpt, sizeof (SockOpt)) == ERROR)
-	{
-    	os_ip_shutdown(ServerSocket, 2);
-		os_ip_close(ServerSocket);
-		temp_socket_id = ERROR;
-	}
-
-	/*Detect a dead connectiom*/
-	SockOpt = TRUE;
-	if(os_ip_setsockopt(ServerSocket, SOL_SOCKET, SO_KEEPALIVE,(INT_8 *)&SockOpt, sizeof (SockOpt)) == ERROR)
-	{
-    	os_ip_shutdown(ServerSocket, 2);
-		os_ip_close(ServerSocket);
-		temp_socket_id = ERROR;
-	}
-
-	/* Bind socket */
-	if (os_ip_bind (ServerSocket, (struct sockaddr *) &ServerAddress, (int)sizeof(ServerAddress)) == ERROR)
-	{
-    	os_ip_shutdown(ServerSocket, 2);
-		os_ip_close(ServerSocket);
-		temp_socket_id = ERROR;
-	}
-	else
-	{
-	    if (os_ip_listen (ServerSocket, 2) == ERROR )
-		{
-	    	os_ip_shutdown(ServerSocket, 2);
-			os_ip_close(ServerSocket);
-			temp_socket_id = ERROR;
-		}
-		else
-		{
-
-			/*Binding socket successful*/
-			temp_socket_id = ServerSocket;
-		}
-	}
-	socket_id = temp_socket_id;
-	// Init client PTU socket information
-	tcpip.socket_id = 0;
-	tcpip.status = ERROR;
-	tcpip.acceptCount = 0;
-	FD_ZERO(&masterFds);
-	FD_SET(socket_id, &masterFds);
-	fdMax = socket_id;
-#endif
-
+    TCPCreateServerSocket (SERVER_PORT_NUM, TCPServerPTUCallback);
 }
 
 /**********************************************************************
@@ -290,22 +176,25 @@ void TCP_Init(void)
 *****************************************************************************/
 void TCP_Main(void)
 {
-    int activity, maxSd;
+    INT_16 activity, maxSd;
 
 	maxSd = TCPPopulateSocketDescriptorList ();
 
     das_printf ("maxSd = %d\n", maxSd);
 
-    //wait for an activity on one of the sockets , timeout is NULL , so wait indefinitely
+    /* wait for an activity on any of the sockets , if mTimerPtr is NULL; wait indefinitely for
+     * activity on the registered sockets */
     activity = select (maxSd + 1, &mReadfds, NULL, NULL, mTimerPtr);
 
-    das_printf ("Activity = %d, mTimer.sec = %d, mTimer.usec = %d, err = %d\n",
-    		activity, mTimer.tv_sec, mTimer.tv_usec, errno);
+    das_printf ("Activity = %d, mTimer.sec = %ld, mTimer.usec = %ld, err = %d\n",
+    		   activity, mTimer.tv_sec, mTimer.tv_usec, errno);
 
+    /* TODO activity = 0 when a timeout occurs (no socket activity). Should use this when checking for
+     * inactivity and closing sockets that way */
 
     if ( (activity < 0) && (errno != EINTR) )
     {
-        printf("select error");
+        os_io_printf("select error");
     }
 
 
@@ -313,93 +202,20 @@ void TCP_Main(void)
 
     TCPServiceIncomingSocketData ();
 
-
-#if 0
-    UINT_16 timer_index;
-     /* accept link */
-	new_socket_id = os_ip_accept(socket_id, (struct sockaddr *)&ClientAddress, &sockAddrSize);
-
-	if (new_socket_id != ERROR)
-	{
-		tcpip.socket_id = new_socket_id;
-		tcpip.status = OK;
-		tcpip.acceptCount ++;
-
-		tcp_task_run = FALSE;
-
-		FD_SET(new_socket_id, &masterFds);
-
-		if (new_socket_id > fdMax)
-		{
-			fdMax = new_socket_id;
-		}
-
-		os_io_printf("\r\ntcpip.acceptCount %d", tcpip.acceptCount);
-	}
-	else
-	{
-		os_io_printf("os_ip_accept(socket_id,2) ERROR ####################################\r\n");
-		os_ip_shutdown (socket_id, 2);
-		os_ip_close (socket_id);
-	}
-#endif
 }
 
 
-/******************************************************************************
-*
-* Module:      	TCP_Close
-*
-* Abstract:    	This function will first shutdown and will then terminates
-*			   	socket connection.
-*
-* Invocation:
-*
-* Traceability: N/A
-*
-* Globals :		tcpip - structure containing the details about the socket
-*						and connection statistic information.
-*
-* Parameters :  socketId - Identifier of the socket that is to be closed
-*
-* Return Value :None
-*
-* Functional Description :  Close the socket after completing
-*							the communication or request from PTU to
-*							terminate communication.
-*
-*
-*   Date & Author:	05/15/09 - Paavani Gatram @ BTECI
-*   Description:    Initial Release which includes TCP/IP
-*					implementation for PTU
-******************************************************************************/
-void TCP_Close (int socketId)
-{
-	// Remove client socket from server list
-	// os_ip_shutdown (socketId, 2);
-	// os_ip_close (socketId);
-}
-
-int GetActiveClientSocket (void)
+int TCPGetActiveClientSocket (void)
 {
 	return mCurrentClientSocket;
 }
 
-typedef enum
-{
-	WAIT_FOR_SOM,
-	WAIT_FOR_COMMAND,
-
-} PtuIpStates;
-
-PtuIpStates mStateMachineIP = WAIT_FOR_SOM;
-
-static void TCPServerCallback5001 (char *aBuffer, int aNumBytes, int aClientSocketId)
+static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocketId)
 {
 	INT_8  sendSOM = THE_SOM;
-	int bytesSent;
+	INT_16  bytesSent;
 
-	das_printf ("Server 5001: SocketId = %d, # Bytes in Msg = %d, Msg = %s\n", aClientSocketId, aNumBytes, aBuffer);
+	das_printf ("PTU Server Handler invoked: SocketId = %d, # Bytes in Msg = %d, Msg = %s\n", aClientSocketId, aNumBytes, aBuffer);
 
 	switch (mStateMachineIP)
 	{
@@ -410,6 +226,7 @@ static void TCPServerCallback5001 (char *aBuffer, int aNumBytes, int aClientSock
 				das_printf ("SYNC_SOM received ONLY\n");
 
 				/*  Send a Start Of Message out to Ethernet port. */
+				/* TODO need to verify that the SOM was sent */
 				bytesSent = os_ip_send (aClientSocketId, (const char*)&sendSOM, 1, 0);
 				das_printf ("Sent THE_SOM; id = 3\n");
 				mStateMachineIP = WAIT_FOR_COMMAND;
@@ -428,8 +245,6 @@ static void TCPServerCallback5001 (char *aBuffer, int aNumBytes, int aClientSock
 				/*  Send a Start Of Message out to Ethernet port. */
 				if (((Header_t *)&Request)->PacketType != TERMINATECONNECTION)
 				{
-					//bytesSent = os_ip_send (aClientSocketId, (const char*)&sendSOM, 1, 0);
-					//das_printf ("Sent THE_SOM; id = 1\n");
 					/* If a smart PTU packet has been received, set comm_type to TCP/IP	*/
 					/* call Message_Manager to process the packet.		                */
 					ComDevice = TCPIP;
@@ -445,7 +260,7 @@ static void TCPServerCallback5001 (char *aBuffer, int aNumBytes, int aClientSock
 			}
 			else
 			{
-				// TODO wait for the entire packet
+				/* TODO wait for the entire packet */
 			}
 			break;
 	}
@@ -456,9 +271,10 @@ static void TCPInitConnections( void )
 	mNumServerSockets = 0;
 	mMaxNumServerSockets = MAX_INITIAL_SERVER_SOCKETS;
 
+	/* TODO may need an OS call or just fix size; since most likely only one server for this app */
 	mServers = calloc (mMaxNumServerSockets, sizeof(ServerSocketInfo));
 
-	TCPSetBlockingTime (10, 0);
+	TCPSetBlockingTime (60, 0);
 }
 
 
@@ -473,59 +289,59 @@ static void TCPSetBlockingTime (long int aSeconds, long int aMicroSeconds)
 
 static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aCallbackFunc)
 {
-	int serverSocket;
+	INT_16 serverSocket;
 	struct sockaddr_in address;
-    int opt = TRUE;
-    int socketFailure = 0;
-    int sockReturnVal;
+    char opt = TRUE;
+    UINT_16 socketFailure = 0;
+    INT_16 sockReturnVal;
 
 	serverSocket = socket (AF_INET, SOCK_STREAM , 0);
 
     /* create a master socketId */
     if (serverSocket == 0)
     {
-        printf ("Server socket creation failed\n");
+        os_io_printf ("Server socket creation failed\n");
         socketFailure = 1;
     }
 
     if (socketFailure == 0)
     {
-    	sockReturnVal = setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt));
-		// set master socket to allow multiple connections , this is just a good habit, it will work without this
+    	sockReturnVal = os_ip_setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt));
+		/* set master socket to allow multiple connections , this is just a good habit,
+		 * it will work without this
+		 */
 		if (sockReturnVal < 0 )
 		{
-			printf ("set socket option failed\n");
+			os_io_printf ("set socket option failed\n");
 			socketFailure = 1;
 		}
     }
 
     if (socketFailure == 0)
     {
-		//type of socketId created
+		/* type of socketId created */
 		address.sin_family = AF_INET;
 		address.sin_addr.s_addr = INADDR_ANY;
 		address.sin_port = htons (aPort);
 
-		sockReturnVal = bind (serverSocket, (struct sockaddr *)&address, sizeof(address));
-
-		//bind the socket to local host port 8888
+		/* bind the socket to local host port */
+		sockReturnVal = os_ip_bind (serverSocket, (struct sockaddr *)&address, sizeof(address));
 		if (sockReturnVal < 0)
 		{
-			printf ("bind failed\n");
+			os_io_printf ("bind failed\n");
 			socketFailure = 1;
 		}
     }
 
     if (socketFailure == 0)
     {
-    	printf("Listener on port %d \n", aPort);
+    	os_io_printf("Listener on port %d \n", aPort);
 
-		// try to specify maximum of 3 pending connections for the master socketId
+    	/* try to specify maximum of 3 pending connections for the master socketId */
     	sockReturnVal = listen (serverSocket, 3);
-
 		if (sockReturnVal < 0)
 		{
-			printf ("listen failed\n");
+			os_io_printf ("listen failed\n");
 			socketFailure = 1;
 		}
     }
@@ -535,6 +351,7 @@ static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aCallba
     	if (mNumServerSockets >= mMaxNumServerSockets)
     	{
     		mMaxNumServerSockets += MAX_INITIAL_SERVER_SOCKETS;
+    		/* TODO check for OS specific to do this, shouldn't have any need though */
     		mServers = realloc ( (void *)mServers, sizeof (ServerSocketInfo) * mMaxNumServerSockets);
     	}
 
@@ -548,22 +365,22 @@ static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aCallba
 }
 
 
-static int TCPPopulateSocketDescriptorList (void)
+static INT_16 TCPPopulateSocketDescriptorList (void)
 {
-	int maxSd;
-	int sd;
-	int i;
-	int socketCnt = 0;
+	INT_16 maxSd;
+	INT_16 sd;
+	UINT_16 i;
+	UINT_16 socketCnt = 0;
 
-	// All of this is required each time in the while loop because the select function modifies the
-	// flags in the file descriptors
-    // clear the socket set
+	/* All of this is required each time in the while loop because the select function modifies the
+	 * flags in the file descriptors clear the socket set
+	 */
     FD_ZERO (&mReadfds);
 
     maxSd = 0;
     while (mServers[socketCnt].socketId != 0)
     {
-    	//add master socket to set
+    	/* add master socket to set */
     	FD_SET (mServers[socketCnt].socketId, &mReadfds);
     	if (mServers[socketCnt].socketId > maxSd)
     	{
@@ -575,13 +392,13 @@ static int TCPPopulateSocketDescriptorList (void)
     socketCnt = 0;
     while (mServers[socketCnt].socketId != 0)
     {
-    	//add child sockets to set
+    	/* add child sockets to set */
 		for (i = 0 ; i < MAX_CLIENTS_PER_SERVER ; i++)
 		{
-			//socket descriptor
+			/* socket descriptor */
 			sd = mServers[socketCnt].clientSockets[i];
 
-			//if valid socket descriptor then add to read list
+			/* if valid socket descriptor then add to read list */
 			if (sd > 0)
 			{
 				FD_SET (sd , &mReadfds);
@@ -591,7 +408,7 @@ static int TCPPopulateSocketDescriptorList (void)
 				break;
 			}
 
-			//highest file descriptor number, need it for the select function
+			/* highest file descriptor number, need it for the select function */
 			if (sd > maxSd)
 			{
 				maxSd = sd;
@@ -607,16 +424,16 @@ static int TCPPopulateSocketDescriptorList (void)
 
 static void TCPServiceIncomingSocketData (void)
 {
-	int i, sd, valread;
-    int addrlen;
+	INT_16 sd, valread;
+	UINT_16 i;
+    UINT_16 addrlen;
     struct sockaddr_in addressInfo;
 	char buffer[4096];
-	int socketCnt = 0;
+	UINT_16 socketCnt = 0;
 
 	while (mServers[socketCnt].socketId != 0)
 	{
-
-		// its some IO operation on some other socket :)
+		/* its some IO operation on some other socket */
 		for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
 		{
 			sd = mServers[socketCnt].clientSockets[i];
@@ -628,24 +445,27 @@ static void TCPServiceIncomingSocketData (void)
 
 			if (FD_ISSET (sd, &mReadfds))
 			{
-				valread = recv (sd, (void *)buffer, 4096, 0);
-				// Check if it was for closing , and also read the incoming message
+				valread = os_ip_recv (sd, (void *)buffer, 4096, 0);
+				/* Check if it was for closing , and also read the incoming message */
 				if (valread == 0)
 				{
 					addrlen = sizeof (addressInfo);
-					//Somebody disconnected , get his details and print
+					/* TODO get OS equivalent Somebody disconnected , get his details and print */
 					getpeername (sd, (struct sockaddr *)&addressInfo , (socklen_t *)&addrlen);
-					printf ("Host disconnected, IP Address =  %s, Port # =  %d \n" , inet_ntoa(addressInfo.sin_addr) , ntohs(addressInfo.sin_port));
+					das_printf ("Host disconnected, IP Address =  %s, Port # =  %d \n" , inet_ntoa(addressInfo.sin_addr) , ntohs(addressInfo.sin_port));
 
-					// Close the socket and mark as 0 in list for reuse
-					shutdown (sd, 2);
+					/* Close the socket and mark as 0 in list for reuse */
+					os_ip_shutdown (sd, 2);
 					os_ip_close (sd);
 					mServers[socketCnt].clientSockets[i] = 0;
 				}
 
-				//Echo back the message that came in
+				/* Invoke the callback  */
 				else if (valread > 0)
 				{
+					/* Save the current socket descriptor so that other parts of the code
+					 * can use this to send to data to the appropriate socket
+					 */
 					mCurrentClientSocket = sd;
 					mServers[socketCnt].callbackFunc(buffer, valread, sd);
 				}
@@ -658,42 +478,41 @@ static void TCPServiceIncomingSocketData (void)
 
 static void TCPScanForNewConnections (void)
 {
-    int new_socket;
-    int socketCnt = 0;
-    int addrlen;
-    int i;
-    int sendMsgLen;
-    int failure = 0;
+    INT_32 newClientSocket;
+    UINT_16 socketCnt = 0;
+    INT_32 addrlen;
+    UINT_16 i;
+    UINT_16 failure = 0;
 
     while ((mServers[socketCnt].socketId != 0) && (failure == 0))
     {
         addrlen = sizeof(mServers[socketCnt].addressInfo);
 
-		//If something happened on the master socketId , then its an incoming connection
+		/* If something happened on the master socketId , then its an incoming connection */
 		if (FD_ISSET(mServers[socketCnt].socketId, &mReadfds) != 0)
 		{
-			new_socket = accept(mServers[socketCnt].socketId, (struct sockaddr *)&mServers[socketCnt].addressInfo, (socklen_t *)&addrlen);
-			if (new_socket < 0)
+			newClientSocket = os_ip_accept(mServers[socketCnt].socketId, (struct sockaddr *)&mServers[socketCnt].addressInfo, (socklen_t *)&addrlen);
+			if (newClientSocket < 0)
 			{
 				failure = 1;
 			}
 
 			if (failure == 0)
 			{
-				// inform user of socketId number - used in send and receive commands
-				printf("New connection , socketId FD = %d , ip is : %s , port : %d \n",
-						new_socket,
+				/* inform user of socketId number - used in send and receive commands */
+				das_printf("New connection , socketId FD = %d , ip is : %s , port : %d \n",
+						newClientSocket,
 						inet_ntoa(mServers[socketCnt].addressInfo.sin_addr),
 						ntohs(mServers[socketCnt].addressInfo.sin_port));
 
-				//add new socketId to array of sockets
+				/* add new socketId to array of sockets */
 				for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
 				{
-					//if position is empty
+					/* if position is empty */
 					if( mServers[socketCnt].clientSockets[i] == 0 )
 					{
-						mServers[socketCnt].clientSockets[i] = new_socket;
-						printf("Adding to list of sockets as %d\n" , i);
+						mServers[socketCnt].clientSockets[i] = newClientSocket;
+						das_printf("Adding to list of sockets as %d\n" , i);
 						break;
 					}
 				}
@@ -742,17 +561,14 @@ static void TCPScanForNewConnections (void)
 *****************************************************************************/
 INT16 TCPIP_GetDataPacket(Header_t *DataPacket, char *buffer, int bufferLength)
 {
-	INT16 	ReturnCode;
-	UINT16 	ByteCounter;
-
 	/* Check the buffer to determine if the entire header was received */
 	if (bufferLength != ((Header_t *)buffer)->PacketLength)
 	{
 		return -1;
-		//TODO return ENTIRE_HEADER_NOT_RECEIVED;
+		/* TODO return ENTIRE_HEADER_NOT_RECEIVED; */
 	}
 
-	//TODO need system call for memcpy
+	/* TODO need system call for memcpy */
 	memcpy (DataPacket, buffer, bufferLength);
 
 	return NOERROR;

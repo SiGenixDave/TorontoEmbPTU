@@ -57,27 +57,7 @@ extern "C" {
 #define BADREQUEST          (-13)
 #define UNKNOWNERROR        (-100)
 
- 
-struct tcpIpStr
-{
-  INT_8    socket_name[16];  /* A unique name for socket/task */
-  UINT_16  socket_id ;       /* Unique ID of socket rwy */
-  INT_16   status;            /* socket status: OK; ERROR rwy*/
-  INT_16   buffer_size;      /* Socket details */
-  INT_16   max_transmits;
-  INT_16   re_tx_interval;
-  UINT_16   port_num;         /* Port number */
-    /* connection statistic information RWY */
-  UINT_32  txCount;      /* total tx count */
-  UINT_32  rxCount;      /* total rx count */
-  UINT_32  rxSendErrCnt; /* total send error count for rx message */
-  UINT_32  txErrCount;   /* total tx error count */
-  UINT_32  rxErrCount;   /* total rx error count */
-  UINT_32  connetCount;  /* count of TCP Client connecting OK */
-  UINT_32  acceptCount;  /* count of TCP Server Accept connection OK*/
-} __attribute__ ((packed));
 
-typedef struct tcpIpStr TCPIP_INFO; 
 
 /* #endif */
 #ifdef __cplusplus

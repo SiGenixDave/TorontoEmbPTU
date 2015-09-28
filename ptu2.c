@@ -82,7 +82,6 @@ extern MaxRequest_t DATAFARTYPE             Request;
 extern MaxResponse_t DATAFARTYPE            Response;
 extern void setWV(UINT_16 Index);
 extern UINT_32                 TransactionCounter;
-extern TCPIP_INFO tcpip;
 
 
 /****************************************************************************
@@ -731,11 +730,13 @@ void MessageManager(Header_t *PassedRequest)
 			break;
 		
 		case TERMINATECONNECTION:
-			 TCP_Close(GetActiveClientSocket());
-			 break;	
+			/* Intentionally do nothing; TCP server handles a FIN,ACK from the client and closes/
+			 * shutdowns the socket
+			 */
+			break;
 
 		default:
-			 break;	
+			break;
 
 
 	}
