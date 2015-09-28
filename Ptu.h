@@ -1104,9 +1104,9 @@ void    CODEFARTYPE    psv_ed_main                 (void);
 /* ptuip.c */
 void TCP_Init(void);
 void TCP_Main(void);
-INT16 TCPIP_GetDataPacket(Header_t *);
+INT16 TCPIP_GetDataPacket(Header_t *DataPacket, char *buffer, int bufferLength);
 void TCP_Close(int sockId);
-INT16 EPTUServer_GetDataPacket(void *Packet, UINT16	*ByteCounter);
+INT16 EPTUServer_GetDataPacket(void *Packet, UINT16	*ByteCounter, int clientSocket);
 #define TCP_SOCKET_TIMEOUT 60 /* seconds */
 
 /* #endif */

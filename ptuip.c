@@ -51,6 +51,7 @@
 
 #endif
 
+#include <errno.h>
 #include "ptuprj.h"
 #include "ptu.h"
 
@@ -73,15 +74,45 @@ INT_16 ClientSocket = 0;
 
 INT_16 serverPortNo = SERVER_PORT_NUM;
 
-struct		sockaddr_in		ClientAddress;
-int			sockAddrSize;
-struct		sockaddr_in		ServerAddress;
-struct		sockaddr_in		PTUAddress;
-
-/* externs */
 extern MaxResponse_t DATAFARTYPE            Response;
 extern MaxRequest_t DATAFARTYPE             Request;
+extern UINT_16 ComDevice;
 
+///////////////////////////////////////////////////////////////////////////////////////
+
+#define MAX_CLIENTS_PER_SERVER				50
+#define MAX_INITIAL_SERVER_SOCKETS			20
+
+///////////////////////////////////////////////////////////////////////////////////////
+typedef void TCPServerCallbackFunc(char *aBuffer, int aNumBytes, int aClientSocketId);
+
+typedef struct
+{
+	unsigned port;
+	struct sockaddr_in addressInfo;
+	TCPServerCallbackFunc *callbackFunc;
+	int socketId;
+	int clientSockets[MAX_CLIENTS_PER_SERVER];
+} ServerSocketInfo;
+
+///////////////////////////////////////////////////////////////////////////////////////
+static int mNumServerSockets;
+static int mMaxNumServerSockets;
+static int mCurrentClientSocket;
+static ServerSocketInfo *mServers;
+static fd_set mReadfds; //set of socket descriptors
+static struct timeval mTimer;
+static struct timeval *mTimerPtr;
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+static void TCPInitConnections (void);
+static void TCPSetBlockingTime (long int aSeconds, long int aMicroSeconds);
+static void TCPServiceIncomingSocketData (void);
+static int TCPPopulateSocketDescriptorList (void);
+static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aCallBackFunc);
+static void TCPScanForNewConnections (void);
+static void TCPServerCallback5001 (char *aBuffer, int aNumBytes, int aClientSocketId);
 
 
 /**********************************************************************
@@ -113,6 +144,11 @@ extern MaxRequest_t DATAFARTYPE             Request;
 void TCP_Init(void)
 {
 
+    TCPInitConnections();
+
+    TCPCreateServerSocket (5001, TCPServerCallback5001);
+
+#if 0
     INT_32 SockOpt;
 	INT_16 temp_socket_id;
 	sockAddrSize = sizeof (struct sockaddr_in);
@@ -216,6 +252,7 @@ void TCP_Init(void)
 	FD_ZERO(&masterFds);
 	FD_SET(socket_id, &masterFds);
 	fdMax = socket_id;
+#endif
 
 }
 
@@ -253,6 +290,31 @@ void TCP_Init(void)
 *****************************************************************************/
 void TCP_Main(void)
 {
+    int activity, maxSd;
+
+	maxSd = TCPPopulateSocketDescriptorList ();
+
+    das_printf ("maxSd = %d\n", maxSd);
+
+    //wait for an activity on one of the sockets , timeout is NULL , so wait indefinitely
+    activity = select (maxSd + 1, &mReadfds, NULL, NULL, mTimerPtr);
+
+    das_printf ("Activity = %d, mTimer.sec = %d, mTimer.usec = %d, err = %d\n",
+    		activity, mTimer.tv_sec, mTimer.tv_usec, errno);
+
+
+    if ( (activity < 0) && (errno != EINTR) )
+    {
+        printf("select error");
+    }
+
+
+    TCPScanForNewConnections ();
+
+    TCPServiceIncomingSocketData ();
+
+
+#if 0
     UINT_16 timer_index;
      /* accept link */
 	new_socket_id = os_ip_accept(socket_id, (struct sockaddr *)&ClientAddress, &sockAddrSize);
@@ -280,6 +342,7 @@ void TCP_Main(void)
 		os_ip_shutdown (socket_id, 2);
 		os_ip_close (socket_id);
 	}
+#endif
 }
 
 
@@ -310,101 +373,338 @@ void TCP_Main(void)
 *   Description:    Initial Release which includes TCP/IP
 *					implementation for PTU
 ******************************************************************************/
-void TCP_Close(int socketId)
+void TCP_Close (int socketId)
 {
-
-	if(tcpip.status == OK)
-	{
-		os_ip_shutdown (socketId, 2);
-		os_ip_close (socketId);
-	}
-
+	// Remove client socket from server list
+	// os_ip_shutdown (socketId, 2);
+	// os_ip_close (socketId);
 }
 
-
-/**********************************************************************
-*
-*   (c) 2007, Bombardier Inc. or its subsidiaries.  All rights reserved.
-*
-*   Module:		EPTUServer_GetDataPacket
-*
-*   Abstract:	Receives a PTU packet from the TCP port
-*
-*   INPUTS:
-*
-*   Globals:  	NONE
-*
-*   Parameters:	Packet - a pointer to the memory where the received
-*			packet is stored.
-*
-*			ByteCounter - This parameter indicates the number of
-*			bytes to be received.
-*
-*
-*   OUTPUTS:
-*
-*		Globals:		None
-*
-*	   	Return Values:
-*
-*           	TRUE        A packet was successfully received
-*           	FALSE       A packet was not successfully received
-*
-*   Functional Description :	This function receives PTU packet from
-*					ethernet port and echoes it back.
-*
-*
-*   Date & Author:  05/15/09 - Paavani Gatram
-*   Description:    Initial Release which includes TCP/IP
-*			  implementation for PTU.
-*****************************************************************************/
-INT16	EPTUServer_GetDataPacket(void *Packet, UINT16	*ByteCounter)
+int GetActiveClientSocket (void)
 {
-	INT16	ReturnCode;
-	INT16	pCktSize;
+	return mCurrentClientSocket;
+}
 
-	/*	Initialize the byte counter. */
-	*ByteCounter = 0;
+typedef enum
+{
+	WAIT_FOR_SOM,
+	WAIT_FOR_COMMAND,
 
-	/*	Get the packet header.	*/
-	while ((ReturnCode = os_ip_recv (tcpip.socket_id, (char *)Packet, sizeof (Header_t), 0)) > 0)
+} PtuIpStates;
+
+PtuIpStates mStateMachineIP = WAIT_FOR_SOM;
+
+static void TCPServerCallback5001 (char *aBuffer, int aNumBytes, int aClientSocketId)
+{
+	INT_8  sendSOM = THE_SOM;
+	int bytesSent;
+
+	das_printf ("Server 5001: SocketId = %d, # Bytes in Msg = %d, Msg = %s\n", aClientSocketId, aNumBytes, aBuffer);
+
+	switch (mStateMachineIP)
 	{
-
-		if (ReturnCode == ERROR)
-			return FALSE;
-		else
-		{
-			*ByteCounter += ReturnCode;
-			pCktSize = ReturnCode;
-			if((((Header_t *)Packet)->PacketLength) > pCktSize)
+		case WAIT_FOR_SOM:
+		default:
+			if ((aBuffer[0] == SYNC_SOM)  && (aNumBytes == 1))
 			{
-				break;
+				das_printf ("SYNC_SOM received ONLY\n");
+
+				/*  Send a Start Of Message out to Ethernet port. */
+				bytesSent = os_ip_send (aClientSocketId, (const char*)&sendSOM, 1, 0);
+				das_printf ("Sent THE_SOM; id = 3\n");
+				mStateMachineIP = WAIT_FOR_COMMAND;
 			}
 			else
 			{
-				return TRUE;
+				das_printf ("More bytes than just SYNC_SOM\n");
 			}
-		}
+			break;
+
+		case WAIT_FOR_COMMAND:
+			/* Get the PTU command packet*/
+			if (TCPIP_GetDataPacket ( (Header_t *)&Request, aBuffer, aNumBytes) == NO_ERROR)
+			{
+
+				/*  Send a Start Of Message out to Ethernet port. */
+				if (((Header_t *)&Request)->PacketType != TERMINATECONNECTION)
+				{
+					//bytesSent = os_ip_send (aClientSocketId, (const char*)&sendSOM, 1, 0);
+					//das_printf ("Sent THE_SOM; id = 1\n");
+					/* If a smart PTU packet has been received, set comm_type to TCP/IP	*/
+					/* call Message_Manager to process the packet.		                */
+					ComDevice = TCPIP;
+					MessageManager ((Header_t *)&Request);
+					das_printf ("Message Type = %d\n",((Header_t *)&Request)->PacketType);
+				}
+				else
+				{
+					das_printf ("TERMINATECONNECTION received from PC\n");
+				}
+				das_printf ("Entire command packet received from PC\n");
+				mStateMachineIP = WAIT_FOR_SOM;
+			}
+			else
+			{
+				// TODO wait for the entire packet
+			}
+			break;
 	}
+}
+
+static void TCPInitConnections( void )
+{
+	mNumServerSockets = 0;
+	mMaxNumServerSockets = MAX_INITIAL_SERVER_SOCKETS;
+
+	mServers = calloc (mMaxNumServerSockets, sizeof(ServerSocketInfo));
+
+	TCPSetBlockingTime (10, 0);
+}
 
 
-	/*	Get the rest of the packet.	*/
-	while ((ReturnCode = os_ip_recv (tcpip.socket_id, ((char *)Packet + *ByteCounter),(((Header_t *)Packet)->PacketLength - *ByteCounter), 0))>0)
-	{
+static void TCPSetBlockingTime (long int aSeconds, long int aMicroSeconds)
+{
 
-		if (ReturnCode == ERROR)
-			return FALSE;
-		else
+	mTimer.tv_sec = aSeconds;
+	mTimer.tv_usec = aMicroSeconds;
+
+	mTimerPtr = &mTimer;
+}
+
+static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aCallbackFunc)
+{
+	int serverSocket;
+	struct sockaddr_in address;
+    int opt = TRUE;
+    int socketFailure = 0;
+    int sockReturnVal;
+
+	serverSocket = socket (AF_INET, SOCK_STREAM , 0);
+
+    /* create a master socketId */
+    if (serverSocket == 0)
+    {
+        printf ("Server socket creation failed\n");
+        socketFailure = 1;
+    }
+
+    if (socketFailure == 0)
+    {
+    	sockReturnVal = setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt));
+		// set master socket to allow multiple connections , this is just a good habit, it will work without this
+		if (sockReturnVal < 0 )
 		{
-			*ByteCounter += ReturnCode;
-			return TRUE;
+			printf ("set socket option failed\n");
+			socketFailure = 1;
 		}
+    }
 
-	}
+    if (socketFailure == 0)
+    {
+		//type of socketId created
+		address.sin_family = AF_INET;
+		address.sin_addr.s_addr = INADDR_ANY;
+		address.sin_port = htons (aPort);
 
-	return FALSE;
+		sockReturnVal = bind (serverSocket, (struct sockaddr *)&address, sizeof(address));
+
+		//bind the socket to local host port 8888
+		if (sockReturnVal < 0)
+		{
+			printf ("bind failed\n");
+			socketFailure = 1;
+		}
+    }
+
+    if (socketFailure == 0)
+    {
+    	printf("Listener on port %d \n", aPort);
+
+		// try to specify maximum of 3 pending connections for the master socketId
+    	sockReturnVal = listen (serverSocket, 3);
+
+		if (sockReturnVal < 0)
+		{
+			printf ("listen failed\n");
+			socketFailure = 1;
+		}
+    }
+
+    if (socketFailure == 0)
+    {
+    	if (mNumServerSockets >= mMaxNumServerSockets)
+    	{
+    		mMaxNumServerSockets += MAX_INITIAL_SERVER_SOCKETS;
+    		mServers = realloc ( (void *)mServers, sizeof (ServerSocketInfo) * mMaxNumServerSockets);
+    	}
+
+    	mServers[mNumServerSockets].port = aPort;
+    	mServers[mNumServerSockets].addressInfo = address;
+    	mServers[mNumServerSockets].socketId = serverSocket;
+    	mServers[mNumServerSockets].callbackFunc = aCallbackFunc;
+    	mNumServerSockets++;
+    }
 
 }
+
+
+static int TCPPopulateSocketDescriptorList (void)
+{
+	int maxSd;
+	int sd;
+	int i;
+	int socketCnt = 0;
+
+	// All of this is required each time in the while loop because the select function modifies the
+	// flags in the file descriptors
+    // clear the socket set
+    FD_ZERO (&mReadfds);
+
+    maxSd = 0;
+    while (mServers[socketCnt].socketId != 0)
+    {
+    	//add master socket to set
+    	FD_SET (mServers[socketCnt].socketId, &mReadfds);
+    	if (mServers[socketCnt].socketId > maxSd)
+    	{
+    		maxSd = mServers[socketCnt].socketId;
+    	}
+    	socketCnt++;
+    }
+
+    socketCnt = 0;
+    while (mServers[socketCnt].socketId != 0)
+    {
+    	//add child sockets to set
+		for (i = 0 ; i < MAX_CLIENTS_PER_SERVER ; i++)
+		{
+			//socket descriptor
+			sd = mServers[socketCnt].clientSockets[i];
+
+			//if valid socket descriptor then add to read list
+			if (sd > 0)
+			{
+				FD_SET (sd , &mReadfds);
+			}
+			else
+			{
+				break;
+			}
+
+			//highest file descriptor number, need it for the select function
+			if (sd > maxSd)
+			{
+				maxSd = sd;
+			}
+		}
+
+		socketCnt++;
+	}
+
+    return maxSd;
+}
+
+
+static void TCPServiceIncomingSocketData (void)
+{
+	int i, sd, valread;
+    int addrlen;
+    struct sockaddr_in addressInfo;
+	char buffer[4096];
+	int socketCnt = 0;
+
+	while (mServers[socketCnt].socketId != 0)
+	{
+
+		// its some IO operation on some other socket :)
+		for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
+		{
+			sd = mServers[socketCnt].clientSockets[i];
+
+			if (sd == 0)
+			{
+				break;
+			}
+
+			if (FD_ISSET (sd, &mReadfds))
+			{
+				valread = recv (sd, (void *)buffer, 4096, 0);
+				// Check if it was for closing , and also read the incoming message
+				if (valread == 0)
+				{
+					addrlen = sizeof (addressInfo);
+					//Somebody disconnected , get his details and print
+					getpeername (sd, (struct sockaddr *)&addressInfo , (socklen_t *)&addrlen);
+					printf ("Host disconnected, IP Address =  %s, Port # =  %d \n" , inet_ntoa(addressInfo.sin_addr) , ntohs(addressInfo.sin_port));
+
+					// Close the socket and mark as 0 in list for reuse
+					shutdown (sd, 2);
+					os_ip_close (sd);
+					mServers[socketCnt].clientSockets[i] = 0;
+				}
+
+				//Echo back the message that came in
+				else if (valread > 0)
+				{
+					mCurrentClientSocket = sd;
+					mServers[socketCnt].callbackFunc(buffer, valread, sd);
+				}
+			}
+		}
+		socketCnt++;
+	}
+
+}
+
+static void TCPScanForNewConnections (void)
+{
+    int new_socket;
+    int socketCnt = 0;
+    int addrlen;
+    int i;
+    int sendMsgLen;
+    int failure = 0;
+
+    while ((mServers[socketCnt].socketId != 0) && (failure == 0))
+    {
+        addrlen = sizeof(mServers[socketCnt].addressInfo);
+
+		//If something happened on the master socketId , then its an incoming connection
+		if (FD_ISSET(mServers[socketCnt].socketId, &mReadfds) != 0)
+		{
+			new_socket = accept(mServers[socketCnt].socketId, (struct sockaddr *)&mServers[socketCnt].addressInfo, (socklen_t *)&addrlen);
+			if (new_socket < 0)
+			{
+				failure = 1;
+			}
+
+			if (failure == 0)
+			{
+				// inform user of socketId number - used in send and receive commands
+				printf("New connection , socketId FD = %d , ip is : %s , port : %d \n",
+						new_socket,
+						inet_ntoa(mServers[socketCnt].addressInfo.sin_addr),
+						ntohs(mServers[socketCnt].addressInfo.sin_port));
+
+				//add new socketId to array of sockets
+				for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
+				{
+					//if position is empty
+					if( mServers[socketCnt].clientSockets[i] == 0 )
+					{
+						mServers[socketCnt].clientSockets[i] = new_socket;
+						printf("Adding to list of sockets as %d\n" , i);
+						break;
+					}
+				}
+			}
+		}
+		socketCnt++;
+
+    }
+
+}
+
 
 
 /**********************************************************************
@@ -440,32 +740,20 @@ INT16	EPTUServer_GetDataPacket(void *Packet, UINT16	*ByteCounter)
 *   Description:    Initial Release which includes TCP/IP
 *			  implementation for PTU.
 *****************************************************************************/
-INT16 TCPIP_GetDataPacket(Header_t *DataPacket)
+INT16 TCPIP_GetDataPacket(Header_t *DataPacket, char *buffer, int bufferLength)
 {
 	INT16 	ReturnCode;
 	UINT16 	ByteCounter;
-	INT8	LocalPacket[20];
 
-
-	if (DataPacket == NULL)
+	/* Check the buffer to determine if the entire header was received */
+	if (bufferLength != ((Header_t *)buffer)->PacketLength)
 	{
-		ReturnCode = EPTUServer_GetDataPacket(	(void *)LocalPacket,
-			&ByteCounter);
-
-		if (ReturnCode) return TRUE;
-
-		if (ByteCounter && ((Header_t *)LocalPacket)->ResponseType == PTU_NAK)
-			return BADRESPONSE;
+		return -1;
+		//TODO return ENTIRE_HEADER_NOT_RECEIVED;
 	}
-	else
-	{
-		ReturnCode = EPTUServer_GetDataPacket(	(void *)DataPacket,
-			&ByteCounter);
-		if (ReturnCode) return TRUE;
 
-		if (ByteCounter && DataPacket->ResponseType == PTU_NAK)
-			return BADRESPONSE;
-	}
+	//TODO need system call for memcpy
+	memcpy (DataPacket, buffer, bufferLength);
 
 	return NOERROR;
 }

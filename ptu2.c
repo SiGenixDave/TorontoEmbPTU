@@ -278,6 +278,8 @@ void MessageManager(Header_t *PassedRequest)
 		case SEND_VARIABLE_VALUE:
 			TransmitACK();
 
+			das_printf("SEND_VARIABLE_VALUE\n");
+
 			Index = ((ReadVariableReq_t *)PassedRequest)->DictionaryIndex;
 
 #ifndef COMC_PTU
@@ -376,7 +378,7 @@ void MessageManager(Header_t *PassedRequest)
 #else
 			das_printf ("Get Embedded Info from PC request\n");
 
-		    version_string = "TOPCVC2402";
+		    version_string = "TOPCVC3507";
 			strncpy( ((GetEmbeddedInfoRes_t *)&Response)->SoftwareVersion,
 					 (const char *)version_string, 40);
 #endif
@@ -729,7 +731,7 @@ void MessageManager(Header_t *PassedRequest)
 			break;
 		
 		case TERMINATECONNECTION:
-			 TCP_Close(tcpip.socket_id);
+			 TCP_Close(GetActiveClientSocket());
 			 break;	
 
 		default:

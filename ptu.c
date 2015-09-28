@@ -391,6 +391,7 @@ INT_16 GetPTUChar(void)
             MessageManager((Header_t *)&Request);
          }
     }
+#if 0
 	else
 	{
 		/* Initialize monitoring parameters */
@@ -473,7 +474,7 @@ INT_16 GetPTUChar(void)
 			}
 		}
 	}
-
+#endif
     TransactionCounter++;
 
     return((INT_16)0);
@@ -535,6 +536,7 @@ void TransmitMessage(   Header_t        *PassedResponse,
     UINT_16         DelayCounter;
 	UINT_16         NumBytes = 0;
 	UINT_8          Send_SOM;
+	int 			clientSocket;
 
 
     /*  Place the true length into the response packet. */
@@ -556,20 +558,19 @@ void TransmitMessage(   Header_t        *PassedResponse,
 			break;
 
 		case TCPIP:
+			das_printf ("send transaction to PC\n");
 
-			//if (tcpip.status == OK)
-			//{
-				das_printf ("send transaction to PC\n");
+			Send_SOM = THE_SOM;
 
-				Send_SOM = THE_SOM;
+			clientSocket = GetActiveClientSocket();
 
-				/*  Send a Start Of Message out to ethernet port. */
-				os_ip_send (new_socket_id, (const char*)&Send_SOM, 1, 0);  
-							
-			   
-				/*  Send every byte in PassedResponse out on TCP/IP port. */
-				NumBytes = os_ip_send (new_socket_id, (char *)PassedResponse, PassedMessageLength,0);
-			//}
+			/*  Send a Start Of Message out to ethernet port. */
+			os_ip_send (clientSocket, (const char*)&Send_SOM, 1, 0);
+			das_printf ("Sent THE_SOM; id = 2\n");
+
+
+			/*  Send every byte in PassedResponse out on TCP/IP port. */
+			NumBytes = os_ip_send (clientSocket, (char *)PassedResponse, PassedMessageLength,0);
 			break;
 
 		default:
@@ -625,10 +626,7 @@ void TransmitACK(void)
 			break;
 
 		case TCPIP: /*Transmit PTU_ACK via TCP/IP*/
-			if(tcpip.status == OK)
-			{
-				os_ip_send((int) tcpip.socket_id,(const char*)&TxACK, 1, 0);
-			}
+			os_ip_send(GetActiveClientSocket(),(const char*)&TxACK, 1, 0);
 			break;
 		
 		default:

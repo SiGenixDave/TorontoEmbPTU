@@ -34,7 +34,7 @@ static DWORD WINAPI myTcpThread(void* threadParams)
         printf("TCP Thread\n");
         fflush(stdout);
         TCP_Main();
-        Sleep(1000);
+        Sleep(10);
     }
 
     return 0;
