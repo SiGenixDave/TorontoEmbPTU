@@ -685,7 +685,11 @@ extern volatile UINT_8 *InterruptStatusRegister1[];
 #define CODEFARTYPE
 
 #define DELAYCONSTANT   1               /* Communication Delay Factor */
+#ifdef TEST_ON_PC
 #define THE_SOM         SYNC_SOM
+#else
+#define THE_SOM			 MOTOROLA_SIM
+#endif
 
 #define CHANNEL0_CNTRL  0x0408          /* Serial Channel Addresses */
 #define CHANNEL1_CNTRL  0x0400
