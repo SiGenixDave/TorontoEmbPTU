@@ -31,10 +31,7 @@ INT_8 	i8[2000];
 static DWORD WINAPI myTcpThread(void* threadParams)
 {
     while(1){
-        printf("TCP Thread\n");
-        fflush(stdout);
         TCP_Main();
-        Sleep(10);
     }
 
     return 0;

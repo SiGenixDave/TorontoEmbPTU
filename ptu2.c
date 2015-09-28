@@ -277,7 +277,7 @@ void MessageManager(Header_t *PassedRequest)
 		case SEND_VARIABLE_VALUE:
 			TransmitACK();
 
-			das_printf("SEND_VARIABLE_VALUE\n");
+			debugPrintf("SEND_VARIABLE_VALUE\n");
 
 			Index = ((ReadVariableReq_t *)PassedRequest)->DictionaryIndex;
 
@@ -375,7 +375,7 @@ void MessageManager(Header_t *PassedRequest)
 #ifndef TEST_ON_PC
 			version_string = GetVersionString();
 #else
-			das_printf ("Get Embedded Info from PC request\n");
+			debugPrintf ("Get Embedded Info from PC request\n");
 
 		    version_string = "TOPCVC3507";
 			strncpy( ((GetEmbeddedInfoRes_t *)&Response)->SoftwareVersion,

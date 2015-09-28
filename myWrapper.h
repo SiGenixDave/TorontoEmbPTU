@@ -39,7 +39,7 @@ typedef signed char 			INT_8;
 #define os_io_read			read
 #define os_io_write 		write
 
-#define das_printf			printf
+
 
 
 #endif /* MYWRAPPER_H_ */

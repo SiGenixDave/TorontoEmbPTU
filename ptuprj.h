@@ -674,6 +674,12 @@ extern volatile UINT_8 *InterruptStatusRegister1[];
 
 #include "ptutopc.h"	
 
+#ifdef DEBUG_PRINT
+#define debugPrintf(fmt, args...)    os_io_printf(fmt, ## args)
+#else
+#define debugPrintf(fmt, args...)    /* Don't do anything in release builds */
+#endif
+
 #define DATAFARTYPE
 #define DATAFARTYPE_2
 #define CODEFARTYPE

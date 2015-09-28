@@ -180,13 +180,13 @@ void TCP_Main(void)
 
 	maxSd = TCPPopulateSocketDescriptorList ();
 
-    das_printf ("maxSd = %d\n", maxSd);
+    debugPrintf ("maxSd = %d\n", maxSd);
 
     /* wait for an activity on any of the sockets , if mTimerPtr is NULL; wait indefinitely for
      * activity on the registered sockets */
     activity = select (maxSd + 1, &mReadfds, NULL, NULL, mTimerPtr);
 
-    das_printf ("Activity = %d, mTimer.sec = %ld, mTimer.usec = %ld, err = %d\n",
+    debugPrintf ("Activity = %d, mTimer.sec = %ld, mTimer.usec = %ld, err = %d\n",
     		   activity, mTimer.tv_sec, mTimer.tv_usec, errno);
 
     /* TODO activity = 0 when a timeout occurs (no socket activity). Should use this when checking for
@@ -215,7 +215,7 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 	INT_8  sendSOM = THE_SOM;
 	INT_16  bytesSent;
 
-	das_printf ("PTU Server Handler invoked: SocketId = %d, # Bytes in Msg = %d, Msg = %s\n", aClientSocketId, aNumBytes, aBuffer);
+	debugPrintf ("PTU Server Handler invoked: SocketId = %d, # Bytes in Msg = %d, Msg = %s\n", aClientSocketId, aNumBytes, aBuffer);
 
 	switch (mStateMachineIP)
 	{
@@ -223,17 +223,17 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 		default:
 			if ((aBuffer[0] == SYNC_SOM)  && (aNumBytes == 1))
 			{
-				das_printf ("SYNC_SOM received ONLY\n");
+				debugPrintf ("SYNC_SOM received ONLY\n");
 
 				/*  Send a Start Of Message out to Ethernet port. */
 				/* TODO need to verify that the SOM was sent */
 				bytesSent = os_ip_send (aClientSocketId, (const char*)&sendSOM, 1, 0);
-				das_printf ("Sent THE_SOM; id = 3\n");
+				debugPrintf ("Sent THE_SOM; id = 3\n");
 				mStateMachineIP = WAIT_FOR_COMMAND;
 			}
 			else
 			{
-				das_printf ("More bytes than just SYNC_SOM\n");
+				debugPrintf ("More bytes than just SYNC_SOM\n");
 			}
 			break;
 
@@ -249,13 +249,13 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 					/* call Message_Manager to process the packet.		                */
 					ComDevice = TCPIP;
 					MessageManager ((Header_t *)&Request);
-					das_printf ("Message Type = %d\n",((Header_t *)&Request)->PacketType);
+					debugPrintf ("Message Type = %d\n",((Header_t *)&Request)->PacketType);
 				}
 				else
 				{
-					das_printf ("TERMINATECONNECTION received from PC\n");
+					debugPrintf ("TERMINATECONNECTION received from PC\n");
 				}
-				das_printf ("Entire command packet received from PC\n");
+				debugPrintf ("Entire command packet received from PC\n");
 				mStateMachineIP = WAIT_FOR_SOM;
 			}
 			else
@@ -452,7 +452,7 @@ static void TCPServiceIncomingSocketData (void)
 					addrlen = sizeof (addressInfo);
 					/* TODO get OS equivalent Somebody disconnected , get his details and print */
 					getpeername (sd, (struct sockaddr *)&addressInfo , (socklen_t *)&addrlen);
-					das_printf ("Host disconnected, IP Address =  %s, Port # =  %d \n" , inet_ntoa(addressInfo.sin_addr) , ntohs(addressInfo.sin_port));
+					debugPrintf ("Host disconnected, IP Address =  %s, Port # =  %d \n" , inet_ntoa(addressInfo.sin_addr) , ntohs(addressInfo.sin_port));
 
 					/* Close the socket and mark as 0 in list for reuse */
 					os_ip_shutdown (sd, 2);
@@ -500,7 +500,7 @@ static void TCPScanForNewConnections (void)
 			if (failure == 0)
 			{
 				/* inform user of socketId number - used in send and receive commands */
-				das_printf("New connection , socketId FD = %d , ip is : %s , port : %d \n",
+				debugPrintf("New connection , socketId FD = %d , ip is : %s , port : %d \n",
 						newClientSocket,
 						inet_ntoa(mServers[socketCnt].addressInfo.sin_addr),
 						ntohs(mServers[socketCnt].addressInfo.sin_port));
@@ -512,7 +512,7 @@ static void TCPScanForNewConnections (void)
 					if( mServers[socketCnt].clientSockets[i] == 0 )
 					{
 						mServers[socketCnt].clientSockets[i] = newClientSocket;
-						das_printf("Adding to list of sockets as %d\n" , i);
+						debugPrintf("Adding to list of sockets as %d\n" , i);
 						break;
 					}
 				}

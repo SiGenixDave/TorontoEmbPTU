@@ -396,10 +396,10 @@ INT_16 GetPTUChar(void)
 		{
 			retVal = os_ip_select((tcpip.socket_id + 1), &readFds, (fd_set *) 0, (fd_set *) 0, &timeout);
 	
-			das_printf ("After select; TCP OK\n");
+			debugPrintf ("After select; TCP OK\n");
 			if (retVal > 0)
 			{
-				das_printf ("retVal > 0\n");
+				debugPrintf ("retVal > 0\n");
 				/* Data has been received on socket. Read it */
 				NOB_RCV = os_ip_recv (tcpip.socket_id, &Recv_SOM, 1, 0);
 			}
@@ -408,11 +408,11 @@ INT_16 GetPTUChar(void)
 		/* Check to see if data has been recevied. If not => close connection */
 		if (NOB_RCV > 0)
 		{
-			das_printf ("NOB_RCV > 0\n");
+			debugPrintf ("NOB_RCV > 0\n");
 			/* Data received. Process it. */
 			if (Recv_SOM == SYNC_SOM) 
 			{
-				das_printf ("Recv_SOM == SYNC_SOM\n");
+				debugPrintf ("Recv_SOM == SYNC_SOM\n");
 				Send_SOM = THE_SOM;
 				/*  Send a Start Of Message out to ethernet port. */
 				NOB = os_ip_send (tcpip.socket_id, (const char*)&Send_SOM, 1, 0);
@@ -549,7 +549,7 @@ void TransmitMessage(   Header_t        *PassedResponse,
 			break;
 
 		case TCPIP:
-			das_printf ("send transaction to PC\n");
+			debugPrintf ("send transaction to PC\n");
 
 			Send_SOM = THE_SOM;
 
@@ -557,7 +557,7 @@ void TransmitMessage(   Header_t        *PassedResponse,
 
 			/*  Send a Start Of Message out to ethernet port. */
 			os_ip_send (clientSocket, (const char*)&Send_SOM, 1, 0);
-			das_printf ("Sent THE_SOM; id = 2\n");
+			debugPrintf ("Sent THE_SOM; id = 2\n");
 
 
 			/*  Send every byte in PassedResponse out on TCP/IP port. */

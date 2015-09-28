@@ -30,6 +30,7 @@
 								<option id="gnu.c.compiler.mingw.exe.debug.option.debugging.level.1409256202" name="Debug Level" superClass="gnu.c.compiler.mingw.exe.debug.option.debugging.level" value="gnu.c.debugging.level.max" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.2091937797" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="TEST_ON_PC"/>
+									<listOptionValue builtIn="false" value="DEBUG_PRINT"/>
 									<listOptionValue builtIn="false" value="COMMON"/>
 									<listOptionValue builtIn="false" value="_DEBUG"/>
 								</option>
@@ -80,8 +81,8 @@
 								<option id="gnu.c.compiler.mingw.exe.release.option.debugging.level.932464639" name="Debug Level" superClass="gnu.c.compiler.mingw.exe.release.option.debugging.level" value="gnu.c.debugging.level.none" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1640157063" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="TEST_ON_PC"/>
-									<listOptionValue builtIn="false" value="COMMON"/>
 									<listOptionValue builtIn="false" value="_DEBUG"/>
+									<listOptionValue builtIn="false" value="COMMON"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.204285909" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
