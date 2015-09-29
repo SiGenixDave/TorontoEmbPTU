@@ -688,7 +688,7 @@ extern volatile UINT_8 *InterruptStatusRegister1[];
 #ifdef TEST_ON_PC
 #define THE_SOM         SYNC_SOM
 #else
-#define THE_SOM			 MOTOROLA_SIM
+#define THE_SOM			 MOTOROLA_SOM
 #endif
 
 #define CHANNEL0_CNTRL  0x0408          /* Serial Channel Addresses */
