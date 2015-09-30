@@ -239,7 +239,7 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 
 		case WAIT_FOR_COMMAND:
 			/* Get the PTU command packet*/
-			if (TCPIP_GetDataPacket ( (Header_t *)&Request, aBuffer, aNumBytes) == NO_ERROR)
+			if (TCPIP_GetDataPacket ( (Header_t *)&Request, aBuffer, aNumBytes) == NOERROR)
 			{
 
 				/*  Send a Start Of Message out to Ethernet port. */
@@ -272,7 +272,7 @@ static void TCPInitConnections( void )
 	mMaxNumServerSockets = MAX_INITIAL_SERVER_SOCKETS;
 
 	/* TODO may need an OS call or just fix size; since most likely only one server for this app */
-	mServers = calloc (mMaxNumServerSockets, sizeof(ServerSocketInfo));
+	mServers = (ServerSocketInfo *)calloc (mMaxNumServerSockets, sizeof(ServerSocketInfo));
 
 	TCPSetBlockingTime (60, 0);
 }
@@ -352,7 +352,7 @@ static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aCallba
     	{
     		mMaxNumServerSockets += MAX_INITIAL_SERVER_SOCKETS;
     		/* TODO check for OS specific to do this, shouldn't have any need though */
-    		mServers = realloc ( (void *)mServers, sizeof (ServerSocketInfo) * mMaxNumServerSockets);
+    		mServers = (ServerSocketInfo *)realloc ( (void *)mServers, sizeof (ServerSocketInfo) * mMaxNumServerSockets);
     	}
 
     	mServers[mNumServerSockets].port = aPort;
@@ -445,15 +445,16 @@ static void TCPServiceIncomingSocketData (void)
 
 			if (FD_ISSET (sd, &mReadfds))
 			{
-				valread = os_ip_recv (sd, (void *)buffer, 4096, 0);
+				valread = os_ip_recv (sd, buffer, 4096, 0);
 				/* Check if it was for closing , and also read the incoming message */
 				if (valread == 0)
 				{
 					addrlen = sizeof (addressInfo);
 					/* TODO get OS equivalent Somebody disconnected , get his details and print */
+#ifdef TEST_ON_PC
 					getpeername (sd, (struct sockaddr *)&addressInfo , (socklen_t *)&addrlen);
 					debugPrintf ("Host disconnected, IP Address =  %s, Port # =  %d \n" , inet_ntoa(addressInfo.sin_addr) , ntohs(addressInfo.sin_port));
-
+#endif
 					/* Close the socket and mark as 0 in list for reuse */
 					os_ip_shutdown (sd, 2);
 					os_ip_close (sd);
@@ -480,7 +481,7 @@ static void TCPScanForNewConnections (void)
 {
     INT_32 newClientSocket;
     UINT_16 socketCnt = 0;
-    INT_32 addrlen;
+    int addrlen;
     UINT_16 i;
     UINT_16 failure = 0;
 
@@ -491,7 +492,7 @@ static void TCPScanForNewConnections (void)
 		/* If something happened on the master socketId , then its an incoming connection */
 		if (FD_ISSET(mServers[socketCnt].socketId, &mReadfds) != 0)
 		{
-			newClientSocket = os_ip_accept(mServers[socketCnt].socketId, (struct sockaddr *)&mServers[socketCnt].addressInfo, (socklen_t *)&addrlen);
+			newClientSocket = os_ip_accept(mServers[socketCnt].socketId, (struct sockaddr *)&mServers[socketCnt].addressInfo, &addrlen);
 			if (newClientSocket < 0)
 			{
 				failure = 1;
