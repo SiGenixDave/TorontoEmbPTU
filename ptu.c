@@ -452,16 +452,12 @@ void TransmitMessage(   Header_t        *PassedResponse,
 			break;
 
 		case TCPIP:
-			debugPrintf ("send transaction to PC\n");
-
 			Send_SOM = THE_SOM;
 
 			clientSocket = TCPGetActiveClientSocket();
 
 			/*  Send a Start Of Message out to ethernet port. */
 			os_ip_send (clientSocket, (const char*)&Send_SOM, 1, 0);
-			debugPrintf ("Sent THE_SOM; id = 2\n");
-
 
 			/*  Send every byte in PassedResponse out on TCP/IP port. */
 			NumBytes = os_ip_send (clientSocket, (char *)PassedResponse, PassedMessageLength,0);

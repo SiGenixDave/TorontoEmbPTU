@@ -291,7 +291,7 @@ static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aCallba
 {
 	INT_16 serverSocket;
 	struct sockaddr_in address;
-    char opt = TRUE;
+	INT_32 opt = TRUE;
     UINT_16 socketFailure = 0;
     INT_16 sockReturnVal;
 
@@ -306,7 +306,7 @@ static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aCallba
 
     if (socketFailure == 0)
     {
-    	sockReturnVal = os_ip_setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt));
+    	sockReturnVal = os_ip_setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, (INT_8 *)&opt, sizeof(opt));
 		/* set master socket to allow multiple connections , this is just a good habit,
 		 * it will work without this
 		 */

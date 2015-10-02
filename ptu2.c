@@ -377,10 +377,11 @@ void MessageManager(Header_t *PassedRequest)
 #else
 			debugPrintf ("Get Embedded Info from PC request\n");
 
-		    version_string = "TOPCVC3507";
-			strncpy( ((GetEmbeddedInfoRes_t *)&Response)->SoftwareVersion,
-					 (const char *)version_string, 40);
+		    version_string = "TOPCVC3508";
 #endif
+		    strncpy( ((GetEmbeddedInfoRes_t *)&Response)->SoftwareVersion,
+					 (const char *)version_string, 40);
+
 #ifndef COMC_PTU
 #ifndef TEST_ON_PC
 			GetCarID( ((GetEmbeddedInfoRes_t *)&Response)->CarID );
