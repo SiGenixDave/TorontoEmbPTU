@@ -47,6 +47,8 @@ extern "C" {
 
 #ifndef TEST_ON_PC
 #include "batram.h"
+#else
+#include "rs232.h"
 #endif
 
 /*  Grab the PTU specific files.                                            */
@@ -96,15 +98,24 @@ extern UINT_16 getncbramsize(void);
 /* returns EOF if nothing read else returns the byte read */
 INT_16 tgetc(INT_16 channel)
 {
+#ifdef TEST_ON_PC
+    int n;
+	unsigned char buf;
+
+	n = RS232_PollComport(0, &buf, 1);
+
+	if (n > 0) {
+		return (INT_16)buf;
+	}
+	else
+	{
+		return EOF;
+	}
+#else
     UINT_8           byte_read;
     INT_16           word_read;
     INT_16           status;
     INT32            no_of_bytes_read;
-
-#ifdef TEST_ON_PC
-    return EOF;
-#endif
-
     /* Read the Port */
     status = os_io_read(fds[channel], (char *)&byte_read, 1, 0 /*TRUE*/, &no_of_bytes_read);
 
@@ -120,6 +131,8 @@ INT_16 tgetc(INT_16 channel)
     
     /* Return a word */
     return(word_read);
+#endif
+
 }
 
 /****************************************************************************
@@ -154,10 +167,17 @@ INT_16 tgetc(INT_16 channel)
 /* writes a byte to the Serial port corresponding to the passed channel */
 void tputc(INT_16 channel, UINT_8 byte_to_write)
 {
+#ifdef TEST_ON_PC
+	// return value of 0 is success
+	while (RS232_SendByte (0, byte_to_write));
+	// Required when running VPSE to slow the data rate down
+	Sleep(10);
+#else
 	INT32 no_of_bytes_written;
 
-    /* Write to the Port */
+	/* Write to the Port */
     os_io_write(fds[channel], (char *)&byte_to_write, 1, TRUE, &no_of_bytes_written);
+#endif
 }
 
 /****************************************************************************

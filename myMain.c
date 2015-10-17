@@ -13,6 +13,7 @@
 
 #include "myWrapper.h"
 #include "FLTINFO.H"
+#include "rs232.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +58,8 @@ int main()
 	const char msg[] = "Hello World\n\r";
 	int i;
 
+	char rs232mode[] = { '8', 'N', '1', 0 };
+
 	struct flt_Blown_Collect_Fuse_Str blownFuseFault;
 	struct fltWheelDiamCalcdiffCheckStr wheelDiamCalcFault;
 
@@ -79,6 +82,12 @@ int main()
 
 	TCP_Init();
 	ptu_init();
+
+	// "0" is com port 1
+	if (RS232_OpenComport(0, 19200, rs232mode)) {
+		printf("Can not open comport\n");
+	}
+
 
 	memset(&blownFuseFault, 0, sizeof(blownFuseFault));
 	blownFuseFault.faultid = E_COLL_SHOE_FAULT;
