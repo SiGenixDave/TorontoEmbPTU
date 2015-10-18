@@ -105,6 +105,7 @@ INT_16 tgetc(INT_16 channel)
 	n = RS232_PollComport(0, &buf, 1);
 
 	if (n > 0) {
+		printf ("RX - %d\n", buf);
 		return (INT_16)buf;
 	}
 	else
@@ -171,7 +172,8 @@ void tputc(INT_16 channel, UINT_8 byte_to_write)
 	// return value of 0 is success
 	while (RS232_SendByte (0, byte_to_write));
 	// Required when running VPSE to slow the data rate down
-	Sleep(10);
+	Sleep(2);
+	printf ("TX - %d\n", byte_to_write);
 #else
 	INT32 no_of_bytes_written;
 

@@ -358,9 +358,6 @@ INT_16 GetPTUChar(void)
     /*  If a SOM is available at the PTU serial port... */
     if (tgetc(PTUCHANNEL) == SYNC_SOM)
     {
-#ifdef TEST_ON_PC
-    	printf ("SOM RXed\n");
-#endif
         /*  ...try to get a smart PTU packet. */
         if (GetRequestPacket((Header_t *)&Request))
         {
