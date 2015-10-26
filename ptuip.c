@@ -131,9 +131,11 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 *
 *
 *   Date & Author:  05/15/09 - Paavani Gatram
-					03/02/11 - Coleen Doherty PIPPC
-					Moved all initilization tasks to this function.
-					it is being called by app.c now.
+*					03/02/11 - Coleen Doherty PIPPC
+*					Moved all initialization tasks to this function.
+*					it is being called by app.c now.
+*					10/26//15 - Dave Smail Overhauled TCP interface to
+*					accept multiple clients and stabilize
 *   Description:    Initial Release for PowerPC board
 *****************************************************************************/
 void TCP_Init(void)
@@ -172,7 +174,11 @@ void TCP_Init(void)
 *					track of new sockets being opened.
 *					03/3/11 - Coleen Doherty, PIPPC
 *					moved all initilization tasks to the TCP_INIT task.
-*					change task timer to the system clock in app.c. It is no longer spawned.
+*					change task timer to the system clock in app.c. It is no
+*					longer spawned.
+*					10/26/15 - Dave Smail Implemented more stable TCP interface
+*					that can handle multiple servers wth each server being
+*					able to handle multiple clients
 *****************************************************************************/
 void TCP_Main(void)
 {
@@ -469,6 +475,15 @@ static void TCPServiceIncomingSocketData (void)
 					 */
 					mCurrentClientSocket = sd;
 					mServers[socketCnt].callbackFunc(buffer, valread, sd);
+				}
+
+				/* Typically TCP RST issued by client */
+				else
+				{
+					/* Close the socket and mark as 0 in list for reuse */
+					os_ip_shutdown (sd, 2);
+					os_ip_close (sd);
+					mServers[socketCnt].clientSockets[i] = 0;
 				}
 			}
 		}
