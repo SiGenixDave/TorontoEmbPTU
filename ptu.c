@@ -456,7 +456,7 @@ void TransmitMessage(   Header_t        *PassedResponse,
 
 			clientSocket = TCPGetActiveClientSocket();
 
-			/*  Send a Start Of Message out to ethernet port. */
+			/*  Send a Start Of Message out to Ethernet port. */
 			os_ip_send (clientSocket, (const char*)&Send_SOM, 1, 0);
 
 			/*  Send every byte in PassedResponse out on TCP/IP port. */

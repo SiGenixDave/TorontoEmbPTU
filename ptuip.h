@@ -48,14 +48,15 @@ extern "C" {
 #define TCPIP					 1	   /* TCP/IP is available as comm device*/
 #define NO_COM_PORT				 3	   /* None of the comm port is selected*/
 
-#define NOERROR             0
-#define PORTOPEN            (-1)
-#define NOHARDWARE          (-2)
-#define TIMEOUT             (-10)
-#define BADRESPONSE         (-11)
-#define CHECKSUMERROR       (-12)							     
-#define BADREQUEST          (-13)
-#define UNKNOWNERROR        (-100)
+#define TCP_MSG_GOOD             	0
+#define PORTOPEN            		(-1)
+#define NOHARDWARE          		(-2)
+#define ENTIRE_MSG_NOT_RECEIVED		(-3)
+#define TIMEOUT             		(-10)
+#define BADRESPONSE         		(-11)
+#define CHECKSUMERROR       		(-12)
+#define BADREQUEST          		(-13)
+#define UNKNOWNERROR       	 		(-100)
 
 
 
