@@ -677,7 +677,7 @@ extern volatile UINT_8 *InterruptStatusRegister1[];
 #ifdef DEBUG_PRINT
 #define debugPrintf(fmt, args...)    os_io_printf(fmt, ## args)
 #else
-#define debugPrintf(fmt, args...)    /* Don't do anything in release builds */
+#define debugPrintf(fmt, args...)    /* Don't do anything in release builds; code effectively doesn't exist */
 #endif
 
 #define DATAFARTYPE

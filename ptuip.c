@@ -133,6 +133,8 @@ static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aCallba
 static void TCPScanForNewConnections (void);
 static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocketId);
 static void TCPCloseActiveSockets (void);
+static INT_16 TCPGetDataPacket(Header_t *aDataPacket, char *aBuffer, int aBufferLength, UINT_32 aBufferIndex);
+
 /*******************************************************************/
 
 
@@ -308,6 +310,7 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 {
 	INT_8  sendSOM = THE_SOM;
 	INT_16  bytesSent;
+	static UINT_32 bufferIndex;
 
 	debugPrintf ("PTU Server Handler invoked: SocketId = %d, # Bytes in Msg = %d, Msg = %s\n", aClientSocketId, aNumBytes, aBuffer);
 
@@ -327,6 +330,7 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 						bytesSent = os_ip_send (aClientSocketId, (const char*)&sendSOM, 1, 0);
 					}
 					debugPrintf ("Sent THE_SOM; id = 3\n");
+					bufferIndex = 0;
 					mStateMachineIP = WAIT_FOR_COMMAND;
 				}
 				else
@@ -341,8 +345,8 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 			break;
 
 		case WAIT_FOR_COMMAND:
-			/* Get the PTU command packet*/
-			if (TCPIP_GetDataPacket ( (Header_t *)&Request, aBuffer, aNumBytes) == TCP_MSG_GOOD)
+			/* Get the PTU command packet */
+			if (TCPGetDataPacket ( (Header_t *)&Request, aBuffer, aNumBytes, bufferIndex) == TCP_MSG_GOOD)
 			{
 				/*  Send a Start Of Message out to Ethernet port. */
 				if (((Header_t *)&Request)->PacketType != TERMINATECONNECTION)
@@ -363,6 +367,8 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 			else
 			{
 				/* Intentionally do nothing: wait for the entire packet */
+				debugPrintf ("Entire TCP packet not received; adjusting buffer index\n");
+				bufferIndex += aNumBytes;
 			}
 			break;
 	}
@@ -458,9 +464,9 @@ static void TCPSetBlockingTime (long int aSeconds, long int aMicroSeconds)
 *
 *   Globals:	NONE
 *
-*   Parameters:	aPort - TODO
-*   	 		aCallbackFunc - TODO
-*   	 		aCloseExistingOnTimeout - TODO
+*   Parameters:	aPort - port number on which server listens
+*   	 		aCallbackFunc - invoked when server receives a message from a client
+*   	 		aCloseExistingOnTimeout - non-zero if all clients are to be closed when a timeout occurs
 *
 *   IN:			NONE
 *
@@ -468,7 +474,11 @@ static void TCPSetBlockingTime (long int aSeconds, long int aMicroSeconds)
 *
 *
 *
-* Functional Description :  TODO
+* Functional Description :  This function follows the standard socket process of creating
+* 							a TCP server socket. It creates a new socket, followed by
+* 							binding the socket to the local IP and then begin listening for
+* 							new clients. Errors are not returned from this function,
+* 							but errors are printed to standard output if any are encountered.
 *
 *
 *   Date & Author:	10/26/15 - Dave Smail
@@ -509,6 +519,7 @@ static void TCPCreateServerSocket (unsigned aPort,
 		}
     }
 
+    /****************************** BIND **********************************/
     if (socketFailure == 0)
     {
 		/* type of socketId created */
@@ -525,6 +536,7 @@ static void TCPCreateServerSocket (unsigned aPort,
 		}
     }
 
+    /***************************** LISTEN *********************************/
     if (socketFailure == 0)
     {
     	os_io_printf("Listener on port %d \n", aPort);
@@ -547,6 +559,7 @@ static void TCPCreateServerSocket (unsigned aPort,
     		mServers = (ServerSocketInfo *)realloc ( (void *)mServers, sizeof (ServerSocketInfo) * mMaxNumServerSockets);
     	}
 
+    	/* Initialize all structure members; all members will be used to support client connections */
     	mServers[mNumServerSockets].port = aPort;
     	mServers[mNumServerSockets].addressInfo = address;
     	mServers[mNumServerSockets].socketId = serverSocket;
@@ -563,7 +576,7 @@ static void TCPCreateServerSocket (unsigned aPort,
 *
 *   Module:		TCPPopulateSocketDescriptorList
 *
-*   Abstract:   TODO
+*   Abstract:   Populates the master socket descriptor list with active sockets
 *
 *   Globals:	NONE
 *
@@ -571,11 +584,18 @@ static void TCPCreateServerSocket (unsigned aPort,
 *
 *   IN:			NONE
 *
-* Return Value : INT_16 -
+* Return Value : INT_16 - max value of any opened socket id
 *
 *
 *
-* Functional Description :  TODO
+* Functional Description :  This function populates the master socket descriptor
+* 							list with all active sockets, both server
+* 							and client sockets. The maximum value of the any
+* 							existing socket (Server or client) is returned from this
+* 							function which will be used by the select function. This
+* 							function musty be called just prior to the select
+* 							function call.
+*
 *
 *
 *   Date & Author:	10/26/15 - Dave Smail
@@ -590,28 +610,34 @@ static INT_16 TCPPopulateSocketDescriptorList (void)
 	UINT_16 i;
 	UINT_16 socketCnt = 0;
 
-	/* All of this is required each time in the while loop because the select function modifies the
-	 * flags in the file descriptors clear the socket set
-	 */
+	/* Zero the master socket list */
     FD_ZERO (&mReadfds);
+
 
     maxSd = 0;
     while (mServers[socketCnt].socketId != 0)
     {
-    	/* add master socket to set */
+    	/* Add any server sockets to the master socket set. It is assumed for this application
+    	 * once servers are created, they are never deleted, and therefore a while loop is used
+    	 * instead of a for loop to only scan through existing servers. In other words, all servers
+    	 * are populated in the order in which they are created and never removed.  */
     	FD_SET (mServers[socketCnt].socketId, &mReadfds);
     	if (mServers[socketCnt].socketId > maxSd)
     	{
+    		/* Store the max value of any socket */
     		maxSd = mServers[socketCnt].socketId;
     	}
     	socketCnt++;
     }
 
+    /* Scan through all existing client sockets and add to the master list. Also determine the max value
+     * of any socket id
+     */
     socketCnt = 0;
     while (mServers[socketCnt].socketId != 0)
     {
-    	/* add child sockets to set */
-		for (i = 0 ; i < MAX_CLIENTS_PER_SERVER ; i++)
+    	/* add client sockets to set */
+		for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
 		{
 			/* socket descriptor */
 			sd = mServers[socketCnt].clientSockets[i];
@@ -641,7 +667,7 @@ static INT_16 TCPPopulateSocketDescriptorList (void)
 *
 *   Module:		TCPServiceIncomingSocketData
 *
-*   Abstract:   TODO
+*   Abstract:   Invoked after the select function "wakes up".
 *
 *   Globals:	NONE
 *
@@ -653,7 +679,11 @@ static INT_16 TCPPopulateSocketDescriptorList (void)
 *
 *
 *
-* Functional Description :  TODO
+* Functional Description :  This function is responsible for determining the type
+* 							of client activity. A client can send a request or issue
+* 							a socket close or socket reset which is all handled here.
+* 							When the client issues a normal request, the appropriate server
+* 							callback is invoked.
 *
 *
 *   Date & Author:	10/26/15 - Dave Smail
@@ -670,22 +700,26 @@ static void TCPServiceIncomingSocketData (void)
 	char buffer[TCP_RX_BUFFER_SIZE];
 	UINT_16 socketCnt = 0;
 
+	/* Scan through all server sockets */
 	while (mServers[socketCnt].socketId != 0)
 	{
-		/* its some IO operation on some other socket */
+		/* Its some IO operation on some other socket */
 		for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
 		{
 			sd = mServers[socketCnt].clientSockets[i];
 
+			/* Go on to next potential client and skip the remaining of this functionality
+			 * since a client is not populated at this point in the list*/
 			if (sd == 0)
 			{
 				continue;
 			}
 
+			/* Determine if this client issued a request */
 			if (FD_ISSET (sd, &mReadfds))
 			{
 				valread = os_ip_recv (sd, buffer, TCP_RX_BUFFER_SIZE, 0);
-				/* Check if it was for closing , and also read the incoming message */
+				/* The client issued a [FIN,ACK] (i.e. graceful close) */
 				if (valread == 0)
 				{
 					addrlen = sizeof (addressInfo);
@@ -700,7 +734,7 @@ static void TCPServiceIncomingSocketData (void)
 					mServers[socketCnt].clientSockets[i] = 0;
 				}
 
-				/* Invoke the callback  */
+				/* Since there are bytes available, the client made the request. Invoke the callback  */
 				else if (valread > 0)
 				{
 					/* Save the current socket descriptor so that other parts of the code
@@ -709,7 +743,8 @@ static void TCPServiceIncomingSocketData (void)
 					mCurrentClientSocket = sd;
 					mServers[socketCnt].callbackFunc(buffer, valread, sd);
 				}
-				/* Typically TCP RST issued by client will cause this. */
+				/* Typically a [RST] was issued by client and will cause the value to be less than 0. Close and shutdown
+				 * the socket and free the client in the list */
 				else
 				{
 					/* Close the socket and mark as 0 in list for reuse */
@@ -729,7 +764,7 @@ static void TCPServiceIncomingSocketData (void)
 *
 *   Module:		TCPScanForNewConnections
 *
-*   Abstract:   TODO
+*   Abstract:   Determines if a new client has attempted to make a connection
 *
 *   Globals:	NONE
 *
@@ -741,7 +776,9 @@ static void TCPServiceIncomingSocketData (void)
 *
 *
 *
-* Functional Description :  TODO
+* Functional Description :  This function determines if a new client has attempted to make
+*  							a connection. If so, it accepts the connection and adds it to the
+*  							client list on the server which it connected to.
 *
 *
 *   Date & Author:	10/26/15 - Dave Smail
@@ -764,6 +801,7 @@ static void TCPScanForNewConnections (void)
 		/* If something happened on the master socketId, then its an incoming connection */
 		if (FD_ISSET(mServers[socketCnt].socketId, &mReadfds) != 0)
 		{
+			/* Get the new client socket id */
 			newClientSocket = os_ip_accept(mServers[socketCnt].socketId, (struct sockaddr *)&mServers[socketCnt].addressInfo, &addrlen);
 			if (newClientSocket < 0)
 			{
@@ -773,7 +811,7 @@ static void TCPScanForNewConnections (void)
 			if (failure == 0)
 			{
 				/* inform user of socketId number - used in send and receive commands */
-				os_io_printf("New connection , socketId FD = %d , ip is : %s , port : %d \n",
+				os_io_printf("New connection , socketId FD = %d , IP is : %s , Port : %d \n",
 						newClientSocket,
 						inet_ntoa(mServers[socketCnt].addressInfo.sin_addr),
 						ntohs(mServers[socketCnt].addressInfo.sin_port));
@@ -781,7 +819,7 @@ static void TCPScanForNewConnections (void)
 				/* add new socketId to array of sockets */
 				for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
 				{
-					/* if position is empty */
+					/* if position is empty, add the new client socket to the server list */
 					if( mServers[socketCnt].clientSockets[i] == 0 )
 					{
 						mServers[socketCnt].clientSockets[i] = newClientSocket;
@@ -789,6 +827,15 @@ static void TCPScanForNewConnections (void)
 						break;
 					}
 				}
+
+				/* Print error message that the socket couldn't be added because the list is full */
+				if (i == MAX_CLIENTS_PER_SERVER)
+				{
+					os_io_printf ("TCP ERROR: Client socket list is full\n");
+					os_ip_shutdown (newClientSocket, 2);
+					os_ip_close (newClientSocket);
+				}
+
 			}
 		}
 		socketCnt++;
@@ -856,9 +903,9 @@ static void TCPCloseActiveSockets (void)
 
 /**********************************************************************
 *
-*   (c) 2007, Bombardier Inc. or its subsidiaries.  All rights reserved.
+*   (c) 2007-2015, Bombardier Inc. or its subsidiaries.  All rights reserved.
 *
-*   Module:		TCPIP_GetDataPacket
+*   Module:		TCPGetDataPacket
 *
 *   Abstract:	Get data packet from a socket
 *
@@ -866,8 +913,11 @@ static void TCPCloseActiveSockets (void)
 *
 *   Globals:  	NONE
 *
-*   Parameters:	DataPacket - a pointer to the memory where the received
-*			packet will be stored.
+*   Parameters:	aDataPacket - a pointer to the memory where the received packet will be stored.
+*   			aBuffer - pointer to the TCP receive buffer
+*   			aBufferLength - the amount of data in the TCP receive buffer
+*   			aBufferIndex - current buffer index (typically 0, but may be non-zero if an entire message
+*   						is not received.
 *
 *
 *   OUTPUTS:
@@ -880,24 +930,25 @@ static void TCPCloseActiveSockets (void)
 *           	BADRESPONSE		A packet was not successfully received
 *
 *   Functional Description :	This function receives PTU packet from
-*					ethernet port.
+*								ethernet port.
 *
 *
 *   Date & Author:  05/15/09 - Paavani Gatram
 *   Description:    Initial Release which includes TCP/IP
-*			  implementation for PTU.
+*			  		implementation for PTU.
+*			  		10/26/15 - Dave Smail
+*			  		Updated to support the rare occurrence that an entire TCP request
+*			  		from a client is not received in its entirety.
 *****************************************************************************/
-INT16 TCPIP_GetDataPacket(Header_t *DataPacket, char *buffer, int bufferLength)
+static INT_16 TCPGetDataPacket(Header_t *aDataPacket, char *aBuffer, int aBufferLength, UINT_32 aBufferIndex)
 {
-	/* Check the buffer to determine if the entire header was received */
-	if (bufferLength != ((Header_t *)buffer)->PacketLength)
-	{
-		return -1;
-		/* TODO return ENTIRE_HEADER_NOT_RECEIVED; */
-	}
+	memcpy (&aDataPacket[aBufferIndex], aBuffer, aBufferLength);
 
-	/* need system call for memcpy */
-	memcpy (DataPacket, buffer, bufferLength);
+	/* Check the buffer to determine if the entire header was received */
+	if ((aBufferLength + aBufferIndex) != aDataPacket->PacketLength)
+	{
+		return ENTIRE_MSG_NOT_RECEIVED;
+	}
 
 	return TCP_MSG_GOOD;
 }
