@@ -72,31 +72,6 @@ extern UINT_16 ComDevice;
 #define MAX_INACTIVE_SOCKET_TIME_SECONDS	(10 * 60)
 /*******************************************************************/
 
-
-/*******************************************************************/
-/*********************** STRUCTURES ********************************/
-/*******************************************************************/
-typedef void TCPServerCallbackFunc(char *aBuffer, int aNumBytes, int aClientSocketId);
-
-
-typedef struct
-{
-	/* Server port number */
-	unsigned port;
-	/* typical address info structure required for initializing socket */
-	struct sockaddr_in addressInfo;
-	/* Function invoked when client activity detected */
-	TCPServerCallbackFunc *callbackFunc;
-	/* socket id of the server as determined by the OS */
-	int socketId;
-	/* List of client sockets */
-	int clientSockets[MAX_CLIENTS_PER_SERVER];
-	/* non-zero if all client sockets to be closed on select() timeout **/
-	int closeExistingOnTimeout;
-} ServerSocketInfo;
-/*******************************************************************/
-
-
 /*******************************************************************/
 /*********************** ENUMERATIONS ******************************/
 /*******************************************************************/
@@ -110,9 +85,46 @@ typedef enum
 
 
 /*******************************************************************/
+/*********************** STRUCTURES ********************************/
+/*******************************************************************/
+typedef void TCPServerCallbackFunc(char *aBuffer, int aNumBytes, int aClientSocketId);
+typedef void TCPNewClientConnectedCallback (int aNewClientSocketId);
+
+typedef struct
+{
+	int socketId;
+
+	PtuTcpRxMsgState state;
+
+	UINT_32 rxBufferIndex;
+
+} PtuClientInfo;
+
+typedef struct
+{
+	/* Server port number */
+	unsigned port;
+	/* typical address info structure required for initializing socket */
+	struct sockaddr_in addressInfo;
+	/* Function invoked when client activity detected */
+	TCPServerCallbackFunc *serviceExistingClientCallback;
+	/* Function invoked when new client connected */
+	TCPNewClientConnectedCallback *newClientConnectedCallback;
+	/* socket id of the server as determined by the OS */
+	int socketId;
+	/* List of client sockets */
+	int clientSocketId[MAX_CLIENTS_PER_SERVER];
+	/* non-zero if all client sockets to be closed on select() timeout **/
+	int closeExistingOnTimeout;
+} ServerSocketInfo;
+/*******************************************************************/
+
+
+
+/*******************************************************************/
 /************ STATIC VARIABLE DECLARATIONS *************************/
 /*******************************************************************/
-static PtuTcpRxMsgState mStateMachineIP = WAIT_FOR_SOM;
+static PtuClientInfo mPtuClientInfo[MAX_CLIENTS_PER_SERVER];
 static UINT_16 mNumServerSockets;
 static UINT_16 mMaxNumServerSockets;
 static INT_16 mCurrentClientSocket;
@@ -129,11 +141,16 @@ static void TCPInitConnections (void);
 static void TCPSetBlockingTime (long int aSeconds, long int aMicroSeconds);
 static void TCPServiceIncomingSocketData (void);
 static INT_16 TCPPopulateSocketDescriptorList (void);
-static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aCallbackFunc, int aCloseExistingOnTimeout);
+static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aServiceClientFunc,
+										TCPNewClientConnectedCallback aNewClientConnectedFunc, int aCloseExistingOnTimeout);
 static void TCPScanForNewConnections (void);
 static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocketId);
-static void TCPCloseActiveSockets (void);
-static INT_16 TCPGetDataPacket(Header_t *aDataPacket, char *aBuffer, int aBufferLength, UINT_32 aBufferIndex);
+static void TCPCloseActiveSocketsOnTimeout (void);
+static INT_16 TCPGetPtuDataPacket(Header_t *aDataPacket, char *aBuffer, int aBufferLength, UINT_32 aBufferIndex);
+
+static void TCPPtuInsertClientInfo (int aClientSocket);
+static void TCPPtuRemoveClientInfo (int aClientSocket);
+
 
 /*******************************************************************/
 
@@ -163,8 +180,18 @@ static INT_16 TCPGetDataPacket(Header_t *aDataPacket, char *aBuffer, int aBuffer
 *****************************************************************************/
 void TCP_Init(void)
 {
+	UINT_16 i;
+
     TCPInitConnections();
-    TCPCreateServerSocket (SERVER_PORT_NUM, TCPServerPTUCallback, TRUE);
+    /* Currently the PTU is the only server socket */
+    TCPCreateServerSocket (SERVER_PORT_NUM, TCPServerPTUCallback, TCPPtuInsertClientInfo, TRUE);
+
+    for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
+    {
+    	mPtuClientInfo[i].rxBufferIndex = 0;
+    	mPtuClientInfo[i].socketId = 0;
+    	mPtuClientInfo[i].state = WAIT_FOR_SOM;
+    }
 }
 
 /**********************************************************************
@@ -224,7 +251,7 @@ void TCP_Main(void)
         /* a timeout has occurred (no socket activity) on all of the active sockets (if any are present)
          * close and free all of the
          */
-    	TCPCloseActiveSockets ();
+    	TCPCloseActiveSocketsOnTimeout ();
     }
     else if ( (activity < 0) && (errno != EINTR) )
     {
@@ -310,11 +337,31 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 {
 	INT_8  sendSOM = THE_SOM;
 	INT_16  bytesSent;
-	static UINT_32 bufferIndex;
+	UINT_16 i;
+	PtuClientInfo *ptuClientInfoPtr = NULL;
 
 	debugPrintf ("PTU Server Handler invoked: SocketId = %d, # Bytes in Msg = %d, Msg = %s\n", aClientSocketId, aNumBytes, aBuffer);
 
-	switch (mStateMachineIP)
+	i = 0;
+	/* Get the pointer to the proper client socket info */
+	while (i < MAX_CLIENTS_PER_SERVER)
+	{
+		if (aClientSocketId == mPtuClientInfo[i].socketId)
+		{
+			ptuClientInfoPtr = &mPtuClientInfo[i];
+			break;
+		}
+		i++;
+	}
+
+	if (ptuClientInfoPtr == NULL)
+	{
+		os_io_printf("TCP ERROR: could not retrieve ptu client info\n");
+		return;
+	}
+
+
+	switch (ptuClientInfoPtr->state)
 	{
 		case WAIT_FOR_SOM:
 		default:
@@ -330,8 +377,8 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 						bytesSent = os_ip_send (aClientSocketId, (const char*)&sendSOM, 1, 0);
 					}
 					debugPrintf ("Sent THE_SOM; id = 3\n");
-					bufferIndex = 0;
-					mStateMachineIP = WAIT_FOR_COMMAND;
+					ptuClientInfoPtr->rxBufferIndex = 0;
+					ptuClientInfoPtr->state = WAIT_FOR_COMMAND;
 				}
 				else
 				{
@@ -346,7 +393,7 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 
 		case WAIT_FOR_COMMAND:
 			/* Get the PTU command packet */
-			if (TCPGetDataPacket ( (Header_t *)&Request, aBuffer, aNumBytes, bufferIndex) == TCP_MSG_GOOD)
+			if (TCPGetPtuDataPacket ( (Header_t *)&Request, aBuffer, aNumBytes, ptuClientInfoPtr->rxBufferIndex) == TCP_MSG_GOOD)
 			{
 				/*  Send a Start Of Message out to Ethernet port. */
 				if (((Header_t *)&Request)->PacketType != TERMINATECONNECTION)
@@ -362,13 +409,13 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 					debugPrintf ("TERMINATECONNECTION received from PC\n");
 				}
 				debugPrintf ("Entire command packet received from PC\n");
-				mStateMachineIP = WAIT_FOR_SOM;
+				ptuClientInfoPtr->state = WAIT_FOR_SOM;
 			}
 			else
 			{
-				/* Intentionally do nothing: wait for the entire packet */
+				/* wait for the entire packet; increment the buffer index by the number of bytes just received */
+				ptuClientInfoPtr->rxBufferIndex += aNumBytes;
 				debugPrintf ("Entire TCP packet not received; adjusting buffer index\n");
-				bufferIndex += aNumBytes;
 			}
 			break;
 	}
@@ -486,9 +533,8 @@ static void TCPSetBlockingTime (long int aSeconds, long int aMicroSeconds)
 *					implementation for PTU
 *
 *****************************************************************************/
-static void TCPCreateServerSocket (unsigned aPort,
-										TCPServerCallbackFunc aCallbackFunc,
-										int aCloseExistingOnTimeout)
+static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aServiceClientFunc,
+										TCPNewClientConnectedCallback aNewClientConnectedFunc, int aCloseExistingOnTimeout)
 {
 	INT_16 serverSocket;
 	struct sockaddr_in address;
@@ -563,7 +609,8 @@ static void TCPCreateServerSocket (unsigned aPort,
     	mServers[mNumServerSockets].port = aPort;
     	mServers[mNumServerSockets].addressInfo = address;
     	mServers[mNumServerSockets].socketId = serverSocket;
-    	mServers[mNumServerSockets].callbackFunc = aCallbackFunc;
+    	mServers[mNumServerSockets].serviceExistingClientCallback = aServiceClientFunc;
+    	mServers[mNumServerSockets].newClientConnectedCallback = aNewClientConnectedFunc;
     	mServers[mNumServerSockets].closeExistingOnTimeout = aCloseExistingOnTimeout;
     	mNumServerSockets++;
     }
@@ -640,7 +687,7 @@ static INT_16 TCPPopulateSocketDescriptorList (void)
 		for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
 		{
 			/* socket descriptor */
-			sd = mServers[socketCnt].clientSockets[i];
+			sd = mServers[socketCnt].clientSocketId[i];
 
 			/* if valid socket descriptor then add to read list */
 			if (sd > 0)
@@ -706,7 +753,7 @@ static void TCPServiceIncomingSocketData (void)
 		/* Its some IO operation on some other socket */
 		for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
 		{
-			sd = mServers[socketCnt].clientSockets[i];
+			sd = mServers[socketCnt].clientSocketId[i];
 
 			/* Go on to next potential client and skip the remaining of this functionality
 			 * since a client is not populated at this point in the list*/
@@ -731,7 +778,8 @@ static void TCPServiceIncomingSocketData (void)
 					/* Close the socket and mark as 0 in list for reuse */
 					os_ip_shutdown (sd, 2);
 					os_ip_close (sd);
-					mServers[socketCnt].clientSockets[i] = 0;
+					mServers[socketCnt].clientSocketId[i] = 0;
+					TCPPtuRemoveClientInfo (sd);
 				}
 
 				/* Since there are bytes available, the client made the request. Invoke the callback  */
@@ -741,7 +789,7 @@ static void TCPServiceIncomingSocketData (void)
 					 * can use this to send to data to the appropriate socket
 					 */
 					mCurrentClientSocket = sd;
-					mServers[socketCnt].callbackFunc(buffer, valread, sd);
+					mServers[socketCnt].serviceExistingClientCallback(buffer, valread, sd);
 				}
 				/* Typically a [RST] was issued by client and will cause the value to be less than 0. Close and shutdown
 				 * the socket and free the client in the list */
@@ -750,7 +798,8 @@ static void TCPServiceIncomingSocketData (void)
 					/* Close the socket and mark as 0 in list for reuse */
 					os_ip_shutdown (sd, 2);
 					os_ip_close (sd);
-					mServers[socketCnt].clientSockets[i] = 0;
+					mServers[socketCnt].clientSocketId[i] = 0;
+					TCPPtuRemoveClientInfo (sd);
 				}
 			}
 		}
@@ -820,9 +869,14 @@ static void TCPScanForNewConnections (void)
 				for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
 				{
 					/* if position is empty, add the new client socket to the server list */
-					if( mServers[socketCnt].clientSockets[i] == 0 )
+					if (mServers[socketCnt].clientSocketId[i] == 0)
 					{
-						mServers[socketCnt].clientSockets[i] = newClientSocket;
+						mServers[socketCnt].clientSocketId[i] = newClientSocket;
+						if (mServers[socketCnt].newClientConnectedCallback != NULL)
+						{
+							mServers[socketCnt].newClientConnectedCallback (newClientSocket);
+						}
+
 						debugPrintf("Adding to list of sockets as %d\n" , i);
 						break;
 					}
@@ -834,6 +888,7 @@ static void TCPScanForNewConnections (void)
 					os_io_printf ("TCP ERROR: Client socket list is full\n");
 					os_ip_shutdown (newClientSocket, 2);
 					os_ip_close (newClientSocket);
+					TCPPtuRemoveClientInfo (newClientSocket);
 				}
 
 			}
@@ -847,7 +902,7 @@ static void TCPScanForNewConnections (void)
 /**********************************************************************
 *
 *
-*   Module:		TCPCloseActiveSockets
+*   Module:		TCPCloseActiveSocketsOnTimeout
 *
 *   Abstract:   TODO
 *
@@ -869,7 +924,7 @@ static void TCPScanForNewConnections (void)
 *					implementation for PTU
 *
 *****************************************************************************/
-static void TCPCloseActiveSockets (void)
+static void TCPCloseActiveSocketsOnTimeout (void)
 {
 	UINT_16 i;
 	UINT_16 socketCnt = 0;
@@ -883,13 +938,15 @@ static void TCPCloseActiveSockets (void)
 			/* Scan through the list and look for active clients */
 			for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
 			{
-				if (mServers[socketCnt].clientSockets[i] != 0)
+				if (mServers[socketCnt].clientSocketId[i] != 0)
 				{
-					sd = mServers[socketCnt].clientSockets[i];
+					sd = mServers[socketCnt].clientSocketId[i];
 					/* Close the socket and mark as 0 in list for reuse */
 					os_ip_shutdown (sd, 2);
 					os_ip_close (sd);
-					mServers[socketCnt].clientSockets[i] = 0;
+					mServers[socketCnt].clientSocketId[i] = 0;
+
+					TCPPtuRemoveClientInfo (sd);
 				}
 			}
 		}
@@ -900,12 +957,46 @@ static void TCPCloseActiveSockets (void)
 }
 
 
+static void TCPPtuInsertClientInfo (int aClientSocket)
+{
+	UINT_16 i;
+
+	i = 0;
+	while (i < MAX_CLIENTS_PER_SERVER)
+	{
+		if (mPtuClientInfo[i].socketId == 0)
+		{
+			mPtuClientInfo[i].socketId = aClientSocket;
+			mPtuClientInfo[i].rxBufferIndex = 0;
+			mPtuClientInfo[i].state = WAIT_FOR_SOM;
+			break;
+		}
+		i++;
+	}
+}
+
+static void TCPPtuRemoveClientInfo (int aClientSocket)
+{
+	UINT_16 i;
+
+	i = 0;
+	while (i < MAX_CLIENTS_PER_SERVER)
+	{
+		if (mPtuClientInfo[i].socketId == aClientSocket)
+		{
+			mPtuClientInfo[i].socketId = 0;
+			break;
+		}
+
+		i++;
+	}
+}
 
 /**********************************************************************
 *
 *   (c) 2007-2015, Bombardier Inc. or its subsidiaries.  All rights reserved.
 *
-*   Module:		TCPGetDataPacket
+*   Module:		TCPGetPtuDataPacket
 *
 *   Abstract:	Get data packet from a socket
 *
@@ -940,7 +1031,7 @@ static void TCPCloseActiveSockets (void)
 *			  		Updated to support the rare occurrence that an entire TCP request
 *			  		from a client is not received in its entirety.
 *****************************************************************************/
-static INT_16 TCPGetDataPacket(Header_t *aDataPacket, char *aBuffer, int aBufferLength, UINT_32 aBufferIndex)
+static INT_16 TCPGetPtuDataPacket(Header_t *aDataPacket, char *aBuffer, int aBufferLength, UINT_32 aBufferIndex)
 {
 	memcpy (&aDataPacket[aBufferIndex], aBuffer, aBufferLength);
 
