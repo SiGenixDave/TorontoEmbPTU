@@ -89,13 +89,15 @@ typedef enum
 /*******************************************************************/
 typedef void TCPServerCallbackFunc(char *aBuffer, int aNumBytes, int aClientSocketId);
 typedef void TCPNewClientConnectedCallback (int aNewClientSocketId);
+typedef void TCPCloseClientCallback (int aClientSocket);
 
 typedef struct
 {
+	/* socket id */
 	int socketId;
-
+	/* current state of this PTU socket */
 	PtuTcpRxMsgState state;
-
+	/* maintains the buffer index in case an entire message isn't received */
 	UINT_32 rxBufferIndex;
 
 } PtuClientInfo;
@@ -110,6 +112,8 @@ typedef struct
 	TCPServerCallbackFunc *serviceExistingClientCallback;
 	/* Function invoked when new client connected */
 	TCPNewClientConnectedCallback *newClientConnectedCallback;
+	/* Function invoked when client is closed */
+	TCPCloseClientCallback *closeClientCallback;
 	/* socket id of the server as determined by the OS */
 	int socketId;
 	/* List of client sockets */
@@ -142,7 +146,8 @@ static void TCPSetBlockingTime (long int aSeconds, long int aMicroSeconds);
 static void TCPServiceIncomingSocketData (void);
 static INT_16 TCPPopulateSocketDescriptorList (void);
 static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aServiceClientFunc,
-										TCPNewClientConnectedCallback aNewClientConnectedFunc, int aCloseExistingOnTimeout);
+										TCPNewClientConnectedCallback aNewClientConnectedFunc, TCPCloseClientCallback *aCloseClientFunc,
+										int aCloseExistingOnTimeout);
 static void TCPScanForNewConnections (void);
 static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocketId);
 static void TCPCloseActiveSocketsOnTimeout (void);
@@ -184,7 +189,7 @@ void TCP_Init(void)
 
     TCPInitConnections();
     /* Currently the PTU is the only server socket */
-    TCPCreateServerSocket (SERVER_PORT_NUM, TCPServerPTUCallback, TCPPtuInsertClientInfo, TRUE);
+    TCPCreateServerSocket (SERVER_PORT_NUM, TCPServerPTUCallback, TCPPtuInsertClientInfo, TCPPtuRemoveClientInfo, TRUE);
 
     for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
     {
@@ -512,7 +517,9 @@ static void TCPSetBlockingTime (long int aSeconds, long int aMicroSeconds)
 *   Globals:	NONE
 *
 *   Parameters:	aPort - port number on which server listens
-*   	 		aCallbackFunc - invoked when server receives a message from a client
+*   	 		aServiceClientFunc - invoked when server receives a message from a client
+*   	 		aNewClientConnectedFunc - invoked when new client is connected
+*   	 		aCloseClientFunc - invoked when client is closed
 *   	 		aCloseExistingOnTimeout - non-zero if all clients are to be closed when a timeout occurs
 *
 *   IN:			NONE
@@ -534,7 +541,8 @@ static void TCPSetBlockingTime (long int aSeconds, long int aMicroSeconds)
 *
 *****************************************************************************/
 static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aServiceClientFunc,
-										TCPNewClientConnectedCallback aNewClientConnectedFunc, int aCloseExistingOnTimeout)
+										TCPNewClientConnectedCallback aNewClientConnectedFunc, TCPCloseClientCallback *aCloseClientFunc,
+										int aCloseExistingOnTimeout)
 {
 	INT_16 serverSocket;
 	struct sockaddr_in address;
@@ -611,6 +619,7 @@ static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aServic
     	mServers[mNumServerSockets].socketId = serverSocket;
     	mServers[mNumServerSockets].serviceExistingClientCallback = aServiceClientFunc;
     	mServers[mNumServerSockets].newClientConnectedCallback = aNewClientConnectedFunc;
+    	mServers[mNumServerSockets].closeClientCallback = aCloseClientFunc;
     	mServers[mNumServerSockets].closeExistingOnTimeout = aCloseExistingOnTimeout;
     	mNumServerSockets++;
     }
@@ -779,7 +788,10 @@ static void TCPServiceIncomingSocketData (void)
 					os_ip_shutdown (sd, 2);
 					os_ip_close (sd);
 					mServers[socketCnt].clientSocketId[i] = 0;
-					TCPPtuRemoveClientInfo (sd);
+					if (mServers[socketCnt].closeClientCallback != NULL)
+					{
+						mServers[socketCnt].closeClientCallback (sd);
+					}
 				}
 
 				/* Since there are bytes available, the client made the request. Invoke the callback  */
@@ -799,7 +811,10 @@ static void TCPServiceIncomingSocketData (void)
 					os_ip_shutdown (sd, 2);
 					os_ip_close (sd);
 					mServers[socketCnt].clientSocketId[i] = 0;
-					TCPPtuRemoveClientInfo (sd);
+					if (mServers[socketCnt].closeClientCallback != NULL)
+					{
+						mServers[socketCnt].closeClientCallback (sd);
+					}
 				}
 			}
 		}
@@ -888,7 +903,10 @@ static void TCPScanForNewConnections (void)
 					os_io_printf ("TCP ERROR: Client socket list is full\n");
 					os_ip_shutdown (newClientSocket, 2);
 					os_ip_close (newClientSocket);
-					TCPPtuRemoveClientInfo (newClientSocket);
+					if (mServers[socketCnt].closeClientCallback != NULL)
+					{
+						mServers[socketCnt].closeClientCallback (newClientSocket);
+					}
 				}
 
 			}
@@ -945,8 +963,10 @@ static void TCPCloseActiveSocketsOnTimeout (void)
 					os_ip_shutdown (sd, 2);
 					os_ip_close (sd);
 					mServers[socketCnt].clientSocketId[i] = 0;
-
-					TCPPtuRemoveClientInfo (sd);
+					if (mServers[socketCnt].closeClientCallback != NULL)
+					{
+						mServers[socketCnt].closeClientCallback (sd);
+					}
 				}
 			}
 		}
@@ -956,7 +976,31 @@ static void TCPCloseActiveSocketsOnTimeout (void)
 
 }
 
-
+/**********************************************************************
+*
+*
+*   Module:		TCPPtuInsertClientInfo
+*
+*   Abstract:   TODO
+*
+*   Globals:	NONE
+*
+*   Parameters:	aClientSocket -
+*
+*   IN:			NONE
+*
+* Return Value : NONE
+*
+*
+*
+* Functional Description :  TODO
+*
+*
+*   Date & Author:	10/26/15 - Dave Smail
+*   Description:    Initial Release which includes overhauled TCP/IP
+*					implementation for PTU
+*
+*****************************************************************************/
 static void TCPPtuInsertClientInfo (int aClientSocket)
 {
 	UINT_16 i;
@@ -975,6 +1019,31 @@ static void TCPPtuInsertClientInfo (int aClientSocket)
 	}
 }
 
+/**********************************************************************
+*
+*
+*   Module:		TCPPtuRemoveClientInfo
+*
+*   Abstract:   TODO
+*
+*   Globals:	NONE
+*
+*   Parameters:	aClientSocket -
+*
+*   IN:			NONE
+*
+* Return Value : NONE
+*
+*
+*
+* Functional Description :  TODO
+*
+*
+*   Date & Author:	10/26/15 - Dave Smail
+*   Description:    Initial Release which includes overhauled TCP/IP
+*					implementation for PTU
+*
+*****************************************************************************/
 static void TCPPtuRemoveClientInfo (int aClientSocket)
 {
 	UINT_16 i;
