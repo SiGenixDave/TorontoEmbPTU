@@ -151,7 +151,7 @@ static void TCPCreateServerSocket (unsigned aPort, TCPServerCallbackFunc aServic
 static void TCPScanForNewConnections (void);
 static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocketId);
 static void TCPCloseActiveSocketsOnTimeout (void);
-static INT_16 TCPGetPtuDataPacket(Header_t *aDataPacket, char *aBuffer, int aBufferLength, UINT_32 aBufferIndex);
+static INT_16 TCPPtuGetDataPacket(Header_t *aDataPacket, char *aBuffer, int aBufferLength, UINT_32 aBufferIndex);
 
 static void TCPPtuInsertClientInfo (int aClientSocket);
 static void TCPPtuRemoveClientInfo (int aClientSocket);
@@ -216,7 +216,8 @@ void TCP_Init(void)
 *
 *
 *
-* Functional Description :  TODO
+* Functional Description :  Function invoked by OS, should be a background or very low priority
+* 							task. Responsible for servicing 1 to many TCP servers
 *
 *
 *   Date & Author:	05/15/09 - Paavani Gatram @ BTECI
@@ -359,6 +360,7 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 		i++;
 	}
 
+	/* Coundn't find the client... exit function */
 	if (ptuClientInfoPtr == NULL)
 	{
 		os_io_printf("TCP ERROR: could not retrieve ptu client info\n");
@@ -372,6 +374,7 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 		default:
 			if (aNumBytes == 1)
 			{
+				/* Verify SOM received */
 				if (aBuffer[0] == SYNC_SOM)
 				{
 					debugPrintf ("SYNC_SOM received ONLY\n");
@@ -398,7 +401,7 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 
 		case WAIT_FOR_COMMAND:
 			/* Get the PTU command packet */
-			if (TCPGetPtuDataPacket ( (Header_t *)&Request, aBuffer, aNumBytes, ptuClientInfoPtr->rxBufferIndex) == TCP_MSG_GOOD)
+			if (TCPPtuGetDataPacket ( (Header_t *)&Request, aBuffer, aNumBytes, ptuClientInfoPtr->rxBufferIndex) == TCP_MSG_GOOD)
 			{
 				/*  Send a Start Of Message out to Ethernet port. */
 				if (((Header_t *)&Request)->PacketType != TERMINATECONNECTION)
@@ -669,7 +672,6 @@ static INT_16 TCPPopulateSocketDescriptorList (void)
 	/* Zero the master socket list */
     FD_ZERO (&mReadfds);
 
-
     maxSd = 0;
     while (mServers[socketCnt].socketId != 0)
     {
@@ -922,7 +924,7 @@ static void TCPScanForNewConnections (void)
 *
 *   Module:		TCPCloseActiveSocketsOnTimeout
 *
-*   Abstract:   TODO
+*   Abstract:   CLoses all active clients on all servers when a timeout occurs
 *
 *   Globals:	NONE
 *
@@ -934,7 +936,10 @@ static void TCPScanForNewConnections (void)
 *
 *
 *
-* Functional Description :  TODO
+* Functional Description :  This function closes all active clients on all
+* 							servers when a timeout occurs. When creating a
+* 							server, on option exists to disable the closing
+* 							of the clients if a timeout occurs.
 *
 *
 *   Date & Author:	10/26/15 - Dave Smail
@@ -981,11 +986,11 @@ static void TCPCloseActiveSocketsOnTimeout (void)
 *
 *   Module:		TCPPtuInsertClientInfo
 *
-*   Abstract:   TODO
+*   Abstract:   Inserts a new PTU client into the PTU info list
 *
 *   Globals:	NONE
 *
-*   Parameters:	aClientSocket -
+*   Parameters:	aClientSocket - client socket id from the OS
 *
 *   IN:			NONE
 *
@@ -993,7 +998,12 @@ static void TCPCloseActiveSocketsOnTimeout (void)
 *
 *
 *
-* Functional Description :  TODO
+* Functional Description :  This function inserts a new PTU client into
+* 							the PTU info list. This list maintains PTU state
+* 							and receive buffer information. Each PTU connection
+* 							must maintain its own state and is required if
+* 							and when more than 1 PTU client is connected in order
+* 							to ensure proper functionality.
 *
 *
 *   Date & Author:	10/26/15 - Dave Smail
@@ -1005,9 +1015,13 @@ static void TCPPtuInsertClientInfo (int aClientSocket)
 {
 	UINT_16 i;
 
+	/* Scan through the PTU client info list */
 	i = 0;
 	while (i < MAX_CLIENTS_PER_SERVER)
 	{
+		/* Find the first free entry in the list and insert the new socket and
+		 * initialize all PTU socket related variables.
+		 */
 		if (mPtuClientInfo[i].socketId == 0)
 		{
 			mPtuClientInfo[i].socketId = aClientSocket;
@@ -1024,11 +1038,11 @@ static void TCPPtuInsertClientInfo (int aClientSocket)
 *
 *   Module:		TCPPtuRemoveClientInfo
 *
-*   Abstract:   TODO
+*   Abstract:   Removes a PTU client from the PTU info list
 *
 *   Globals:	NONE
 *
-*   Parameters:	aClientSocket -
+*   Parameters:	aClientSocket - client socket id from the OS
 *
 *   IN:			NONE
 *
@@ -1036,7 +1050,10 @@ static void TCPPtuInsertClientInfo (int aClientSocket)
 *
 *
 *
-* Functional Description :  TODO
+* Functional Description :  Removes a PTU client from the PTU info list. This
+* 							function is invoked as part of the closing of a
+* 							PTU client connection. This frees up a member in the
+* 							list for a new PTU connection.
 *
 *
 *   Date & Author:	10/26/15 - Dave Smail
@@ -1048,9 +1065,13 @@ static void TCPPtuRemoveClientInfo (int aClientSocket)
 {
 	UINT_16 i;
 
+	/* Scan through the PTU client info list */
 	i = 0;
 	while (i < MAX_CLIENTS_PER_SERVER)
 	{
+		/* Compare the socket id and zero out the client socket in the list which
+		 * effectively frees the location in the list for a new client
+		 */
 		if (mPtuClientInfo[i].socketId == aClientSocket)
 		{
 			mPtuClientInfo[i].socketId = 0;
@@ -1090,7 +1111,7 @@ static void TCPPtuRemoveClientInfo (int aClientSocket)
 *           	BADRESPONSE		A packet was not successfully received
 *
 *   Functional Description :	This function receives PTU packet from
-*								ethernet port.
+*								Ethernet port.
 *
 *
 *   Date & Author:  05/15/09 - Paavani Gatram
@@ -1100,7 +1121,7 @@ static void TCPPtuRemoveClientInfo (int aClientSocket)
 *			  		Updated to support the rare occurrence that an entire TCP request
 *			  		from a client is not received in its entirety.
 *****************************************************************************/
-static INT_16 TCPGetPtuDataPacket(Header_t *aDataPacket, char *aBuffer, int aBufferLength, UINT_32 aBufferIndex)
+static INT_16 TCPPtuGetDataPacket(Header_t *aDataPacket, char *aBuffer, int aBufferLength, UINT_32 aBufferIndex)
 {
 	memcpy (&aDataPacket[aBufferIndex], aBuffer, aBufferLength);
 
