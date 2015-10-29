@@ -876,11 +876,11 @@ static void TCPScanForNewConnections (void)
 
 			if (failure == 0)
 			{
+				os_io_printf ("New client connected, socketId FD = %d\n", newClientSocket);
 				/* inform user of socketId number - used in send and receive commands */
-				os_io_printf("New connection , socketId FD = %d , IP is : %s , Port : %d \n",
-						newClientSocket,
-						inet_ntoa(mServers[socketCnt].addressInfo.sin_addr),
-						ntohs(mServers[socketCnt].addressInfo.sin_port));
+				debugPrintf("IP Address = %s , Port # = %d\n",
+								inet_ntoa(mServers[socketCnt].addressInfo.sin_addr),
+								ntohs(mServers[socketCnt].addressInfo.sin_port));
 
 				/* add new socketId to array of sockets */
 				for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
