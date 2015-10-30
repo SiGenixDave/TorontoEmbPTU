@@ -91,6 +91,9 @@ typedef void TCPServerCallbackFunc(char *aBuffer, int aNumBytes, int aClientSock
 typedef void TCPNewClientConnectedCallback (int aNewClientSocketId);
 typedef void TCPCloseClientCallback (int aClientSocket);
 
+
+// TODO Add receive buffer to this structure; currently it seems that an entire rx message
+// is always contained in 1 packet and therefore the sharing of the receive buffer is OK
 typedef struct
 {
 	/* socket id */
