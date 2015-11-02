@@ -249,7 +249,7 @@ void TCP_Main(void)
     /* wait for an activity on any of the sockets, if mTimerPtr is NULL; wait indefinitely for
      * activity on the registered sockets. Wakes up only when a new client is trying to connect
      * or an existing client has sent a request. */
-    activity = select (maxSd + 1, &mReadfds, NULL, NULL, mTimerPtr);
+    activity = os_ip_select (maxSd + 1, &mReadfds, NULL, NULL, mTimerPtr);
 
     debugPrintf ("Activity = %d, mTimer.sec = %ld, mTimer.usec = %ld, err = %d\n",
     		   activity, mTimer.tv_sec, mTimer.tv_usec, errno);
