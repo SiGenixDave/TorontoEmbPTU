@@ -93,7 +93,8 @@ typedef void TCPCloseClientCallback (int aClientSocket);
 
 
 /* TODO Add receive buffer to this structure; currently it seems that an entire rx message */
-/* is always contained in 1 packet and therefore the sharing of the receive buffer is OK */
+/* is always contained in 1 packet and therefore the sharing of the receive buffer is OK.
+ * Will also need a read and write index. */
 typedef struct
 {
 	/* socket id */
@@ -370,7 +371,9 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 		return;
 	}
 
-
+	/* TODO need to change to support stream of data instead of packets (i.e. need to
+	 * assume a byte at a time is received. So far no issues.
+	 */
 	switch (ptuClientInfoPtr->state)
 	{
 		case WAIT_FOR_SOM:

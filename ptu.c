@@ -667,10 +667,10 @@ INT_16 GetRequestPacket(Header_t *PassedRequest)
 INT_16 GetByte(void)
 {
     INT_16   ReturnedValue;
-    INT_16   DelayValue;
+    INT_32   DelayValue;
 
 /*  Load DelayValue with the proper timeout constant.                       */
-    DelayValue = 0x7FFF;
+    DelayValue = 0x7FFFF;
 
 /*  While DelayCounter is greater than 0, decrement it and try to get a     */
 /*  character from the serial port.  If DelayCounter decrements to 0,       */
