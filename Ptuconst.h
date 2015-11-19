@@ -15,4 +15,4 @@
 
 #define CHARTDACLOCATION        0x8004
 
-#define WATCHSIZE               20
+#define WATCHSIZE               40

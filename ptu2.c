@@ -377,23 +377,23 @@ void MessageManager(Header_t *PassedRequest)
 #else
 			debugPrintf ("Get Embedded Info from PC request\n");
 
-		    version_string = "TOPCVC3508";
+		    version_string = "TOPCVC3603";
 #endif
 		    strncpy( ((GetEmbeddedInfoRes_t *)&Response)->SoftwareVersion,
-					 (const char *)version_string, 40);
+					 (const char *)version_string, 41);
 
 #ifndef COMC_PTU
 #ifndef TEST_ON_PC
 			GetCarID( ((GetEmbeddedInfoRes_t *)&Response)->CarID );
 #else
-			strcpy( ((GetEmbeddedInfoRes_t *)&Response)->CarID, "1234");
+			strncpy( ((GetEmbeddedInfoRes_t *)&Response)->CarID, "1234", 11);
 #endif
 #endif
 			strncpy( ((GetEmbeddedInfoRes_t *)&Response)->SubSystemName,
-					 WATCHWINDOWTITLE, 40);
+					 WATCHWINDOWTITLE, 41);
 
 			strncpy( ((GetEmbeddedInfoRes_t *)&Response)->IdentifierString,
-					 IDENTIFIERSTRING, 4);
+					 IDENTIFIERSTRING, 5);
 
 			((GetEmbeddedInfoRes_t *)&Response)->ConfigurationMask =
 					PTUCONFIGURATION;

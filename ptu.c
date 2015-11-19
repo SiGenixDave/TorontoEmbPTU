@@ -459,6 +459,16 @@ void TransmitMessage(   Header_t        *PassedResponse,
 			/*  Send a Start Of Message out to Ethernet port. */
 			os_ip_send (clientSocket, (const char*)&Send_SOM, 1, 0);
 
+#ifdef TEST_ON_PC
+			BytePointer = (UINT_8 *)(PassedResponse);
+			printf ("TX: ");
+			for (NumBytes = 0; NumBytes < PassedMessageLength; NumBytes++)
+			{
+				printf ("%3u ",BytePointer[NumBytes] & 0xff);
+			}
+			printf ("\n\r");
+#endif
+
 			/*  Send every byte in PassedResponse out on TCP/IP port. */
 			NumBytes = os_ip_send (clientSocket, (char *)PassedResponse, PassedMessageLength,0);
 			break;

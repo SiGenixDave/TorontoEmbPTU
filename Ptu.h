@@ -256,7 +256,7 @@ extern "C" {
 
 
 /*  Defines for the PTU communications protocol.                            */
-#define WATCHSIZE                   20
+#define WATCHSIZE                   40
 
 #define SET_WATCH_ELEMENT           2
 #define SET_WATCH_ELEMENTS          3

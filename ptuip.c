@@ -352,6 +352,15 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 
 	debugPrintf ("PTU Server Handler invoked: SocketId = %d, # Bytes in Msg = %d, Msg = %s\n", aClientSocketId, aNumBytes, aBuffer);
 
+#ifdef TEST_ON_PC
+	printf ("RX: ");
+	for (i = 0; i < aNumBytes; i++)
+	{
+		printf ("%3u ", aBuffer[i] & 0xFF);
+	}
+	printf ("\n\r");
+#endif
+
 	i = 0;
 	/* Get the pointer to the proper client socket info */
 	while (i < MAX_CLIENTS_PER_SERVER)
