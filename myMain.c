@@ -14,12 +14,14 @@
 #include "myWrapper.h"
 #include "FLTINFO.H"
 #include "rs232.h"
+#include "ptu.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 
 UINT_32 u32[2000];
@@ -50,7 +52,6 @@ static void CreateTCPThread (void)
         0,                      /* use default creation flags.    */
         &threadDescriptor);     /* returns the thread identifier. */
 }
-
 
 int main()
 {
@@ -117,5 +118,25 @@ int main()
 		Sleep (10);
 		PTUMain();
 	}
+}
+
+
+
+void GetTimeDateFromPC (MaxResponse_t *Response)
+{
+	GetTimeDateRes_t *ptr = Response;
+	time_t t;
+	struct tm *myTime;
+	time(&t);
+
+	myTime = localtime(&t);
+
+	ptr->Year = myTime->tm_year;
+	ptr->Month = myTime->tm_mon;
+	ptr->Day = myTime->tm_mday;
+	ptr->Hour = myTime->tm_hour;
+	ptr->Minute = myTime->tm_min;
+	ptr->Second = myTime->tm_sec;
+
 }
 

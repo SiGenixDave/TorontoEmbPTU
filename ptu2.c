@@ -491,25 +491,33 @@ void MessageManager(Header_t *PassedRequest)
 							(UINT_16)sizeof(GetWatchValuesRes_t)    );
 			break;
 
-#ifndef TEST_ON_PC
 		case GET_TIME_DATE:
+#ifndef TEST_ON_PC
 			GetTimeDate(&Response);
+#else
+			GetTimeDateFromPC(&Response);
+#endif
 			
 			TransmitMessage((Header_t *)&Response,
 							(UINT_16)sizeof(GetTimeDateRes_t)   );
 			break;
 
+
 		case SET_TIME_DATE:
 			TransmitACK();
 			
+#ifndef TEST_ON_PC
 			SetTimeDate((MaxRequest_t DATAFARTYPE *)PassedRequest);
+#else
 			
+#endif
 			/*Added for Daylite savings time - Becki Cirinelli 11-12-01
 			this will update the spring & fall flags when the time
 			is changed via the PTU*/
 			//Update_DST_ST_Flags();
 			break;
 
+#ifndef TEST_ON_PC
 		case START_CLOCK:
 			TransmitACK();
 
