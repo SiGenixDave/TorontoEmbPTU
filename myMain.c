@@ -53,6 +53,51 @@ static void CreateTCPThread (void)
         &threadDescriptor);     /* returns the thread identifier. */
 }
 
+struct flt_Blown_Collect_Fuse_Str blownFuseFault;
+struct fltWheelDiamCalcdiffCheckStr wheelDiamCalcFault;
+
+static void UserInterfaceMain()
+{
+	int ch;
+	printf ("UI Thread\n");
+	ch = getchar();
+	switch (ch)
+	{
+		case 'b':
+			blownFuseFault.ptuCarSpeed = rand();
+			LogFault(Propulsion, (struct minfaultpacket_t *)&blownFuseFault, sizeof(blownFuseFault));
+			break;
+		case 'w':
+			wheelDiamCalcFault.ptuCarSpeed = rand();
+			LogFault(Engineering, (struct minfaultpacket_t *)&wheelDiamCalcFault, sizeof(wheelDiamCalcFault));
+			break;
+	}
+	fflush(stdin);
+}
+
+static DWORD WINAPI myUIThread(void* threadParams)
+{
+    while(1){
+        UserInterfaceMain();
+    }
+
+    return 0;
+}
+
+static void CreateUIThread (void)
+{
+    DWORD threadDescriptor;
+
+    CreateThread(
+        NULL,                   /* default security attributes.   */
+        0,                      /* use default stack size.        */
+		myUIThread,          /* thread function name.          */
+        (void*)NULL,        /* argument to thread function.   */
+        0,                      /* use default creation flags.    */
+        &threadDescriptor);     /* returns the thread identifier. */
+}
+
+
 int main()
 {
 	int err;
@@ -61,8 +106,7 @@ int main()
 
 	char rs232mode[] = { '8', 'N', '1', 0 };
 
-	struct flt_Blown_Collect_Fuse_Str blownFuseFault;
-	struct fltWheelDiamCalcdiffCheckStr wheelDiamCalcFault;
+
 
 #ifdef WIN32
 	/*********************************/
@@ -111,6 +155,7 @@ int main()
 	}
 
 	CreateTCPThread ();
+	CreateUIThread ();
 
 
 	while (1)
@@ -138,5 +183,21 @@ void GetTimeDateFromPC (MaxResponse_t *Response)
 	ptr->Minute = myTime->tm_min;
 	ptr->Second = myTime->tm_sec;
 
+}
+
+void ReadClockFromPC(struct date_time_type *ptr)
+{
+	time_t t;
+	struct tm *myTime;
+	time(&t);
+
+	myTime = localtime(&t);
+
+	ptr->year = myTime->tm_year - 100;
+	ptr->month = myTime->tm_mon + 1;
+	ptr->day = myTime->tm_mday;
+	ptr->hr = myTime->tm_hour;
+	ptr->min = myTime->tm_min;
+	ptr->sec = myTime->tm_sec;
 }
 

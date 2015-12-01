@@ -39,7 +39,14 @@ typedef signed char 			INT_8;
 #define os_io_read			read
 #define os_io_write 		write
 
-
+struct date_time_type  {
+  UINT_8   hr;                    /* hours */
+  UINT_8   min;                   /* minutes */
+  UINT_8   sec;                   /* seconds */
+  UINT_8 month;					  /* month */
+  UINT_8 day;                     /* day */
+  UINT_8 year;                    /* year */
+};
 
 
 #endif /* MYWRAPPER_H_ */

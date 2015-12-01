@@ -110,6 +110,8 @@ extern "C" {
 #include "ioclock.h"
 #include "st_def.h"
 #include "st_var.h"
+#else
+#include "myWrapper.h"
 #endif
 
 /* externs */
@@ -275,7 +277,9 @@ void LoadFaultHeaderWithoutTime(struct minfaultpacket_t *passedfault)
 *************************************************************************/
 void LoadFaultHeader(struct minfaultpacket_t *passedfault)
 {
-#ifndef TEST_ON_PC
+#ifdef TEST_ON_PC
+	ReadClockFromPC((struct date_time_type *)(&passedfault->TimeStamp));
+#else
   /* Store the time of the fault */
   Read_clock((struct date_time_type *)(&passedfault->TimeStamp), PTU_TIME);
 #endif
@@ -956,6 +960,8 @@ void GetTimeDate(MaxResponse_t DATAFARTYPE *Response)
 	((GetTimeDateRes_t *)Response)->Year   = TimeStruct.year;
 	((GetTimeDateRes_t *)Response)->Month  = TimeStruct.month;
 	((GetTimeDateRes_t *)Response)->Day    = TimeStruct.day;
+#else
+	GetTimeDateFromPC (Response);
 #endif
 
 }
