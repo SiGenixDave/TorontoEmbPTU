@@ -464,7 +464,7 @@ void TransmitMessage(   Header_t        *PassedResponse,
 			printf ("TX: ");
 			for (NumBytes = 0; NumBytes < PassedMessageLength; NumBytes++)
 			{
-				printf ("%3u ",BytePointer[NumBytes] & 0xff);
+				printf ("%3d ",BytePointer[NumBytes] & 0xff);
 			}
 			printf ("\n\r");
 #endif
