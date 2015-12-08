@@ -415,6 +415,7 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 			break;
 
 		case WAIT_FOR_COMMAND:
+			// TODO Need to be able to handle a SyncSOM only just like the serial
 			/* Get the PTU command packet */
 			if (TCPPtuGetDataPacket ( (Header_t *)&Request, aBuffer, aNumBytes, ptuClientInfoPtr->rxBufferIndex) == TCP_MSG_GOOD)
 			{
