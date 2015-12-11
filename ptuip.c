@@ -392,7 +392,7 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 				/* Verify SOM received */
 				if (aBuffer[0] == SYNC_SOM)
 				{
-					debugPrintf ("SYNC_SOM received ONLY\n");
+					debugPrintf ("SYNC_SOM received\n");
 					bytesSent = 0;
 					while (bytesSent != 1)
 					{
@@ -415,9 +415,26 @@ static void TCPServerPTUCallback (char *aBuffer, int aNumBytes, int aClientSocke
 			break;
 
 		case WAIT_FOR_COMMAND:
-			// TODO Need to be able to handle a SyncSOM only just like the serial
+			/* Need to be able to handle a SyncSOM only just like the serial even though
+			 * a message from the PC is expected */
+			if (aNumBytes == 1)
+			{
+				/* Verify SOM received */
+				if (aBuffer[0] == SYNC_SOM)
+				{
+					debugPrintf ("SYNC_SOM received when message packet expected\n");
+					bytesSent = 0;
+					while (bytesSent != 1)
+					{
+						/*  Send a Start Of Message out to Ethernet port. */
+						bytesSent = os_ip_send (aClientSocketId, (const char*)&sendSOM, 1, 0);
+					}
+					debugPrintf ("Sent THE_SOM; id = 3\n");
+					ptuClientInfoPtr->rxBufferIndex = 0;
+				}
+			}
 			/* Get the PTU command packet */
-			if (TCPPtuGetDataPacket ( (Header_t *)&Request, aBuffer, aNumBytes, ptuClientInfoPtr->rxBufferIndex) == TCP_MSG_GOOD)
+			else if (TCPPtuGetDataPacket ( (Header_t *)&Request, aBuffer, aNumBytes, ptuClientInfoPtr->rxBufferIndex) == TCP_MSG_GOOD)
 			{
 				/*  Send a Start Of Message out to Ethernet port. */
 				if (((Header_t *)&Request)->PacketType != TERMINATECONNECTION)
