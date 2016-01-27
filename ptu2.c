@@ -579,6 +579,8 @@ void MessageManager(Header_t *PassedRequest)
 
 			((GetFaultDataRes_t *)&Response)->BufferSize = Index;
 
+			debugPrintf ("Fault Size = %d, Message size = %d\n",Index,(UINT_16)(sizeof(Header_t) + 2 + Index) );
+
 			TransmitMessage((Header_t *)&Response,
 							(UINT_16)(sizeof(Header_t) + 2 + Index) );
 			break;

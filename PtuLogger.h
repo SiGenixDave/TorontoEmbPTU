@@ -41,24 +41,24 @@ extern "C" {
 /* Event/Data Logger #0 : Propulsion Faults */
 #define LOGGER0_NUMBER_OF_TASKS               16
 #define LOGGER0_NUMBER_OF_FAULTS_PER_TASK     80
-#define LOGGER0_MAX_NUM_OF_FAULTS             75
+#define LOGGER0_MAX_NUM_OF_FAULTS             250
 #define LOGGER0_SIZEOF_AVERAGE_FAULT_PACKAGE  124/* at least sizeof( struct minfaultpacket_t ) */
 #define LOGGER0_SIZE_OF_FAULT_QUEUE           ( LOGGER0_SIZEOF_AVERAGE_FAULT_PACKAGE * \
                                                 LOGGER0_MAX_NUM_OF_FAULTS              )
 #define LOGGER0_NUM_OF_DATALOG_ELEMENTS       6  //  6 after BATRAM limitation has been fixed
-#define LOGGER0_NUM_LOGGED_VARIABLES          16
+#define LOGGER0_NUM_LOGGED_VARIABLES          8
 #define LOGGER0_NUM_OF_DATALOG_ENTRIES        100
 
 /* Event/Data Logger #1 : Engineering Faults */
 #define LOGGER1_NUMBER_OF_TASKS               16
 #define LOGGER1_NUMBER_OF_FAULTS_PER_TASK     80
-#define LOGGER1_MAX_NUM_OF_FAULTS             75
+#define LOGGER1_MAX_NUM_OF_FAULTS             250
 
 #define LOGGER1_SIZEOF_AVERAGE_FAULT_PACKAGE  124 /* at least sizeof( struct minfaultpacket_t ) */
 #define LOGGER1_SIZE_OF_FAULT_QUEUE           ( LOGGER1_SIZEOF_AVERAGE_FAULT_PACKAGE * \
                                                 LOGGER1_MAX_NUM_OF_FAULTS              )
 #define LOGGER1_NUM_OF_DATALOG_ELEMENTS       6     //  6 after BATRAM limitation has been fixed
-#define LOGGER1_NUM_LOGGED_VARIABLES          16
+#define LOGGER1_NUM_LOGGED_VARIABLES          8
 #define LOGGER1_NUM_OF_DATALOG_ENTRIES        100
 
 /* Event/Data Logger #2 : DCU FASTMDB Faults */

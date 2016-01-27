@@ -146,7 +146,7 @@ int main()
 	wheelDiamCalcFault.loggerid = Velocity;
 
 
-	for (i = 0; i < 0x10020; i++)
+	for (i = 0; i < 0x1000; i++)
 	{
 		blownFuseFault.ptuCarSpeed = i;
 		LogFault(Propulsion, (struct minfaultpacket_t *)&blownFuseFault, sizeof(blownFuseFault));
