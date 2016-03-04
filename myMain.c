@@ -176,8 +176,8 @@ void GetTimeDateFromPC (MaxResponse_t *Response)
 
 	myTime = localtime(&t);
 
-	ptr->Year = myTime->tm_year;
-	ptr->Month = myTime->tm_mon;
+	ptr->Year = myTime->tm_year % 100;
+	ptr->Month = myTime->tm_mon + 1;
 	ptr->Day = myTime->tm_mday;
 	ptr->Hour = myTime->tm_hour;
 	ptr->Minute = myTime->tm_min;
