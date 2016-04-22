@@ -183,6 +183,10 @@ void GetTimeDateFromPC (MaxResponse_t *Response)
 	ptr->Minute = myTime->tm_min;
 	ptr->Second = myTime->tm_sec;
 
+	printf("****************************************\n");
+	printf("Year = %d\n",ptr->Year);
+	printf("****************************************\n");
+
 }
 
 void ReadClockFromPC(struct date_time_type *ptr)

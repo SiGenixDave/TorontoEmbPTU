@@ -252,6 +252,11 @@ void TCP_Main(void)
      * or an existing client has sent a request. */
     activity = os_ip_select (maxSd + 1, &mReadfds, NULL, NULL, mTimerPtr);
 
+    /* DAS ----------------------- IMPORTANT REMOVE AFTER TEST --------------------------------------
+     * This Sleep() was inserted to create the Communication timeout when switching between event logs
+     */
+    //Sleep (750);
+
     debugPrintf ("Activity = %d, mTimer.sec = %ld, mTimer.usec = %ld, err = %d\n",
     		   activity, mTimer.tv_sec, mTimer.tv_usec, errno);
 

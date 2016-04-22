@@ -41,7 +41,7 @@ extern "C" {
 /* Event/Data Logger #0 : Propulsion Faults */
 #define LOGGER0_NUMBER_OF_TASKS               16
 #define LOGGER0_NUMBER_OF_FAULTS_PER_TASK     80
-#define LOGGER0_MAX_NUM_OF_FAULTS             250
+#define LOGGER0_MAX_NUM_OF_FAULTS             75
 #define LOGGER0_SIZEOF_AVERAGE_FAULT_PACKAGE  124/* at least sizeof( struct minfaultpacket_t ) */
 #define LOGGER0_SIZE_OF_FAULT_QUEUE           ( LOGGER0_SIZEOF_AVERAGE_FAULT_PACKAGE * \
                                                 LOGGER0_MAX_NUM_OF_FAULTS              )

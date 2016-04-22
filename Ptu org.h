@@ -299,7 +299,7 @@ extern "C" {
 #define DISABLE                 0
 #define ENABLE                  1
 #define PURGE                   2
-#define MAXFAULTBUFFERSIZE      4096
+#define MAXFAULTBUFFERSIZE      2048 //DAS 4096
 #define MAXFAULTSIZE            255
 #define DYNAMIC                 0
 #define STATIC                  1

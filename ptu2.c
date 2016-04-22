@@ -171,6 +171,8 @@ void MessageManager(Header_t *PassedRequest)
 	UINT_16                 NumberOfBytes;
 	UINT_8                  *version_string;
 
+	char carId[] = {"1234" "\0" "3456"};
+
 	/*  Set the response type to the request type. */
 	Response.PacketType = PassedRequest->PacketType;
 
@@ -377,7 +379,7 @@ void MessageManager(Header_t *PassedRequest)
 #else
 			debugPrintf ("Get Embedded Info from PC request\n");
 
-		    version_string = "TOPCVC3605";
+		    version_string = "TOPCVC3606";
 #endif
 		    strncpy( ((GetEmbeddedInfoRes_t *)&Response)->SoftwareVersion,
 					 (const char *)version_string, 41);
@@ -386,7 +388,7 @@ void MessageManager(Header_t *PassedRequest)
 #ifndef TEST_ON_PC
 			GetCarID( ((GetEmbeddedInfoRes_t *)&Response)->CarID );
 #else
-			strncpy( ((GetEmbeddedInfoRes_t *)&Response)->CarID, "1234", 11);
+			memcpy( ((GetEmbeddedInfoRes_t *)&Response)->CarID, carId, 11);
 #endif
 #endif
 			strncpy( ((GetEmbeddedInfoRes_t *)&Response)->SubSystemName,
@@ -676,7 +678,6 @@ void MessageManager(Header_t *PassedRequest)
 
 			TransmitMessage( (Header_t *)&Response,
 							 (UINT_16)(sizeof(Header_t) + 4 + NumberOfBytes) );
-
 
 			break;
 
