@@ -10,6 +10,14 @@
 
 #include <stdio.h>
 
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#ifndef FALSE
+#define FALSE 1
+#endif
+
 typedef unsigned 		 		UINT_32, UINT32;
 typedef signed  				INT_32, INT32;
 typedef short int 				INT_16, INT16;

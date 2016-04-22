@@ -104,12 +104,12 @@ extern "C" {
 #include "batram.h"
 
 #include "version.h"
+#include "st_def.h"
+#include "st_var.h"
 
 #ifndef TEST_ON_PC
 #include "io_def.h"
 #include "ioclock.h"
-#include "st_def.h"
-#include "st_var.h"
 #else
 #include "myWrapper.h"
 #endif
@@ -435,9 +435,11 @@ void ChangeChartVariable(UINT_16 ChartIndex, UINT_16 VariableIndex)
 *   07/12/2001  2.0   S.Taher - Created for Pittsburgh
 * 
 *****************************************************************************/
+#define getTachZeroSpeed()   TRUE
+
 void Start_self_test_task_req(void)
 {   
-#ifndef TEST_ON_PC
+
   // Commented out to wait for integration with self-test
    struct st_cmd_str SelfTestCommand;
    struct st_resp_str init_response;
@@ -463,7 +465,6 @@ void Start_self_test_task_req(void)
 
   	Write_st_cmd_buf((UINT_8 *) &SelfTestCommand, (UINT_16) sizeof(SelfTestCommand));
    }
-#endif
 }   /* end func Start_self_test_task_req */
 
 /****************************************************************************
