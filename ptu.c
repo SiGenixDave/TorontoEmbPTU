@@ -458,6 +458,7 @@ void TransmitMessage(   Header_t        *PassedResponse,
 
 			/*  Send a Start Of Message out to Ethernet port. */
 			os_ip_send (clientSocket, (const char*)&Send_SOM, 1, 0);
+			printf("DASDAS\n");
 
 #ifdef TEST_ON_PC
 			BytePointer = (UINT_8 *)(PassedResponse);

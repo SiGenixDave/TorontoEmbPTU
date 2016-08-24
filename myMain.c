@@ -33,6 +33,8 @@ INT_8 	i8[2000];
 
 static DWORD WINAPI myTcpThread(void* threadParams)
 {
+    htons(1234);
+
     while(1){
         TCP_Main();
     }

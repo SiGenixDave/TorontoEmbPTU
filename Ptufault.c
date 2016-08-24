@@ -412,7 +412,7 @@ UINT_8 InitializeFaultLogger(   struct faultlogqueue_t  *eventlogger,
 	eventlogger->active = TRUE;
 
 	/*  Enable a default stream dumps */
-	SetupStreamDump(eventlogger);
+	//DAS SetupStreamDump(eventlogger);
 
     /* Clear corresponding PSV-ED state table */
   // Commented out - awating functionality integration

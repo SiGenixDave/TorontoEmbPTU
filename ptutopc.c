@@ -435,7 +435,7 @@ void ChangeChartVariable(UINT_16 ChartIndex, UINT_16 VariableIndex)
 *   07/12/2001  2.0   S.Taher - Created for Pittsburgh
 * 
 *****************************************************************************/
-#define getTachZeroSpeed()   TRUE
+#define getTachZeroSpeed()   FALSE
 
 void Start_self_test_task_req(void)
 {   
@@ -448,8 +448,8 @@ void Start_self_test_task_req(void)
    {
  	/* Speed or Power Request is present */
  	init_response.msg_mode = ST_MSG_MODE_SPECIAL;
- 	init_response.test_id = ST_SPECIAL_NO_ENTER;
- 	init_response.result.type1.test_case = 1;
+ 	init_response.test_id = ST_SPECIAL_NO_ENTER;  // result in PTE code
+ 	init_response.result.type1.test_case = 3;     // reason in PTE code; modify based on the reason self test can't be entered
  	init_response.result.type1.num_of_vars = 0;
  	init_response.flags = 0;
  	init_response.set_info = 0;
@@ -503,7 +503,6 @@ void Start_self_test_task_req(void)
 *****************************************************************************/
 void Exit_self_test_task_req(void)
 { 
-#ifndef TEST_ON_PC
   // Commented out - Waiting for self-test integration.
   struct st_cmd_str SelfTestCommand;
 
@@ -511,7 +510,6 @@ void Exit_self_test_task_req(void)
   SelfTestCommand.xy_info = 0;
   SelfTestCommand.data     = 0;
   Write_st_cmd_buf((UINT_8 *) &SelfTestCommand, (UINT_16) sizeof(SelfTestCommand));
-#endif
 }   /* end func Exit_self_test_task_req */
 
 
@@ -551,14 +549,12 @@ void Exit_self_test_task_req(void)
 *****************************************************************************/
 void Self_test_cmd_req(Header_t *PassedRequest)
 {
-#ifndef TEST_ON_PC
   // Commented out to wait for integration with self-test
   UINT_16 length;
 
   length = PassedRequest->PacketLength - sizeof(Header_t);
   Write_st_cmd_buf(
     (UINT_8 *) &(((SelfTestCommandReq_t *) PassedRequest)->id), length);
-#endif
 }   /* end func Self_test_cmd_req */
 
 
@@ -597,7 +593,6 @@ void Self_test_cmd_req(Header_t *PassedRequest)
 *****************************************************************************/
 void Get_self_test_packet_req(MaxResponse_t DATAFARTYPE *Response)
 {
-#ifndef TEST_ON_PC
   // Commented out - waiting to add the self test functionality
   UINT_16 MessageLength;
   UINT_16 MsgAvailable;
@@ -610,14 +605,15 @@ void Get_self_test_packet_req(MaxResponse_t DATAFARTYPE *Response)
     ((GetSelfTestPacketRes_t *)Response)->Valid = TRUE;
     TransmitMessage( (Header_t *)Response,
 	     (UINT_16)(MessageLength + sizeof(Header_t)) );
+    debugPrintf("Self Test Msg Available... Length = %d\n",MessageLength);
   }
   else
   {
     ((GetSelfTestPacketRes_t *)Response)->Valid = FALSE;
     TransmitMessage( (Header_t *)Response,
 	     (UINT_16)(2 + sizeof(Header_t)) );
+    debugPrintf("Self Test Msg NOT Available\n");
   }
-#endif
 }   /* end func Get_self_test_packet_req */
 
 
