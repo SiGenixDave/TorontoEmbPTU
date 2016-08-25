@@ -40,7 +40,7 @@ struct st_buffer_index_str cmd_buf;
 struct st_resp_str st_resp_buf[ST_RESP_BUFFER_SIZE];
 struct st_buffer_index_str resp_buf;
 
-#if 0
+#if 1
 /* Default Logic and Passive Tests' list */
 UINT_16 st_list_logic[] =
 {
@@ -50,7 +50,7 @@ UINT_16 st_list_logic[] =
 /* Default Interacive Tests' list */
 UINT_16 st_list_interactive[] =
 {
-  ST_MC,
+  //ST_MC,
   ST_NULL
 };
 

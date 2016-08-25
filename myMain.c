@@ -31,6 +31,11 @@ INT_32 	i32[2000];
 INT_16 	i16[2000];
 INT_8 	i8[2000];
 
+void MySleep(int amountMs)
+{
+    Sleep (amountMs);
+}
+
 static DWORD WINAPI myTcpThread(void* threadParams)
 {
     htons(1234);
@@ -157,7 +162,7 @@ int main()
 	}
 
 	CreateTCPThread ();
-	CreateUIThread ();
+	//CreateUIThread ();
 
 
 	while (1)

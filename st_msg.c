@@ -116,6 +116,7 @@ void Write_st_cmd_buf(UINT_8 *buffer, UINT_16 length) {
 	st_cmd_buf[cmd_buf.index_in].xy_info = cmd->xy_info;
 	st_cmd_buf[cmd_buf.index_in].data = cmd->data;
 
+
 	/* Debug */
 	if (cmd->id != ST_CMD_UPDT_MODE) {
 		Log_st_event(Engineering, ST_E_WRITE_ST_CMD_BUF, cmd->id, cmd->xy_info,
@@ -182,7 +183,121 @@ void Write_st_cmd_buf(UINT_8 *buffer, UINT_16 length) {
 		/* Abort Self-test */
 		//DAS setSTAbortTestFlag(ST_ABORT_CMD_BUF_FULL);
 	}
+
+	ProcessPtuCommand(st_cmd_buf[cmd_buf.index_out].id, st_cmd_buf[cmd_buf.index_out].data);
+
+
+    cmd_buf.index_out++;
+    cmd_buf.index_out %= ST_CMD_BUFFER_SIZE;
+
 }
+
+UINT_8 testExecute;
+void ProcessPtuCommand(UINT_8 commandId, UINT16 commandData) {
+    //#[ operation ProcessPtuCommand()
+    UINT_16 i;
+    UINT_16 tempFlag;
+    UINT_16 listComplete;
+
+    printf("ST: Write_st_cmd_buf(): id = %d : data = %d\n",commandId, commandData);
+
+    switch (commandId)
+    {
+        case ST_CMD_UPDT_MODE:  //Update Self-test User mode
+            //itsASelfTestMgr->setUser_mode(command.data);
+            //printf("Mode Update\n");
+            break;
+
+        case ST_CMD_SEL_LIST: //Select predetermined list
+            switch (commandData)
+            {
+                case PTU_LIST_LOGIC:
+                    //DAS itsASelfTestMgr->setMode(ST_MODE_LTEST);
+                    printf("Logic List Selected\n");
+                    break;
+
+                case PTU_LIST_INTERACTIVE:
+                    //DASitsASelfTestMgr->setMode(ST_MODE_ITEST);
+                    printf("Interactive List Selected\n");
+                    break;
+
+                case PTU_LIST_POWER:
+                    //itsASelfTestMgr->setMode(ST_MODE_PTEST);
+                    printf("Power List Selected\n");
+                    break;
+
+                default: //PTU LIst not supported
+                    printf("Unknown List\n");
+                    //itsStEventLogger->LogPtuEvents(ST_E_LIST_NOT_SUPPORTED, aCmd->id, aCmd->xy_info, aCmd->data, 0, 0, 0 );
+                    break;
+            }
+            break;
+
+        case ST_CMD_EXECUTE_LIST:  //Execute Self-test
+            //DAS itsASelfTestMgr->opStEnter();
+            testExecute = TRUE;
+            printf("Execute Command\n");
+            break;
+
+        case ST_CMD_ABORT_SEQ: // Abort sequence
+        case ST_CMD_ABORT_SES: // Abort session
+            //DAS tempFlag = itsASelfTestMgr->getAbortTestFlag();
+            //DAS itsASelfTestMgr->setAbortTestFlag(tempFlag |= ST_ABORT_SES_PTU);
+            //DAS itsASelfTestMgr->opStAbortSes();
+            printf("Abort %d\n",commandId);
+            break;
+
+        case ST_CMD_ACK_MSG:
+            break;
+
+        // the operator acknowledges to continue the interactive test
+        case ST_CMD_OPRTR_ACK:
+            //DAS itsASelfTestMgr->Continue();
+            //printf("Operator Ack\n");
+            break;
+
+        case ST_CMD_UPDT_LOOP_CNT:  // Update the Self-test loop count
+            //DAS itsASelfTestMgr->setMaxLoopCount(command.data);
+            printf("Loop: %d\n",commandData);
+            break;
+
+        case ST_CMD_ENTER_ST:  //enter self test
+            resp_buf.index_in = 0;
+            resp_buf.index_out = 0;
+            Respond_special(ST_SPECIAL_ENTER);
+            break;
+
+        case ST_CMD_EXIT_ST: // Exit Self-test
+            Respond_special(ST_SPECIAL_EXIT);
+            break;
+
+        case ST_CMD_UPDT_LIST: //update user defined test list
+            //DAS itsASelfTestMgr->setMode(ST_MODE_USRDEF_TEST);
+            //DAS itsASelfTestMgr->ClearUserDefList();
+            printf("User Def List\n");
+
+            for(i = 0; i < ST_MAX_USRDEF_LIST_SIZE; i++)
+            {
+                //DAS listComplete = itsASelfTestMgr->AddToUserDefList(st_cmd_buf[cmd_buf.index_out].usrdef_test_id[i]);
+
+                if (listComplete == (UINT_16)FALSE)
+                {
+                    break;
+                }
+            }
+            break;
+
+        default:  // PTU Command Invalid
+            //itsStEventLogger->LogPtuEvents(ST_E_INVALID_USRDEF_LIST, aCmd->id, aCmd->xy_info, aCmd->data, 0, 0, 0 );
+            break;
+     }
+
+
+
+    //#]
+}
+
+
 
 /*****************************************************************************
  *
@@ -747,6 +862,8 @@ void Respond_interactive(UINT_16 test_id, UINT_16 composite_result,
 	/* Match array size with the number of maximum parameters supported */
 	UINT_32 data_item[10];
 
+	//MySleep(400);
+
 	/* Do not send any response if Internal Requested Self-test is in progress */
 	/* PTU cannot handle a fast response rate - Slow it down */
 	if (resp_buf.index_out == resp_buf.index_in) {
@@ -771,7 +888,7 @@ void Respond_interactive(UINT_16 test_id, UINT_16 composite_result,
 		resp.set_info = 0;
 		resp.test_id = test_id;
 		resp.result.type1.version = 0;
-		resp.result.type1.test_case = 0;
+		resp.result.type1.test_case = 1;
 		resp.result.type1.num_of_vars = 0;
 		resp.result.type1.test_result = composite_result;
 		resp.flags = 0;

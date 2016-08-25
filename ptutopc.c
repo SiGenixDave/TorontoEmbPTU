@@ -435,7 +435,7 @@ void ChangeChartVariable(UINT_16 ChartIndex, UINT_16 VariableIndex)
 *   07/12/2001  2.0   S.Taher - Created for Pittsburgh
 * 
 *****************************************************************************/
-#define getTachZeroSpeed()   FALSE
+#define getTachZeroSpeed()   TRUE
 
 void Start_self_test_task_req(void)
 {   
@@ -448,7 +448,8 @@ void Start_self_test_task_req(void)
    {
  	/* Speed or Power Request is present */
  	init_response.msg_mode = ST_MSG_MODE_SPECIAL;
- 	init_response.test_id = ST_SPECIAL_NO_ENTER;  // result in PTE code
+    init_response.test_id = ST_SPECIAL_ENTER;  // result in PTE code
+    // init_response.test_id = ST_SPECIAL_NO_ENTER;  // result in PTE code
  	init_response.result.type1.test_case = 3;     // reason in PTE code; modify based on the reason self test can't be entered
  	init_response.result.type1.num_of_vars = 0;
  	init_response.flags = 0;
@@ -463,6 +464,7 @@ void Start_self_test_task_req(void)
   	SelfTestCommand.xy_info = 0;
   	SelfTestCommand.data     = 0;
 
+  	printf("ST: Enter\n");
   	Write_st_cmd_buf((UINT_8 *) &SelfTestCommand, (UINT_16) sizeof(SelfTestCommand));
    }
 }   /* end func Start_self_test_task_req */
@@ -591,11 +593,24 @@ void Self_test_cmd_req(Header_t *PassedRequest)
 *     Removed #if's.
 *   07/12/2001  2.0   S.Taher - Created for Pittsburgh
 *****************************************************************************/
+extern UINT_8 testExecute;
+extern UINT_8 testCount = 0;
+UINT_16 var1, var2;
 void Get_self_test_packet_req(MaxResponse_t DATAFARTYPE *Response)
 {
   // Commented out - waiting to add the self test functionality
   UINT_16 MessageLength;
   UINT_16 MsgAvailable;
+
+  if (testExecute == TRUE)
+  {
+      //testCount = 0;
+      //testExecute = FALSE;
+      MySleep(400);
+      var1++; var2+=2;
+      Respond_interactive(201, 1, "%d %d ", var1, var2, 0, 0, 0, 0, 0, 0, 0, 0);
+     //Respond_special(ST_SPECIAL_TEST_COMPLETE);
+  }
 
   MsgAvailable = Read_st_resp_buf((UINT_8 *)
                      &((GetSelfTestPacketRes_t *)Response)->Valid,
