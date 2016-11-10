@@ -564,7 +564,8 @@ typedef struct
 	UINT_8  Hour       __attribute__ ((packed));
 	UINT_8  Minute       __attribute__ ((packed));
 	UINT_8  Second       __attribute__ ((packed));
-	UINT_8  Year       __attribute__ ((packed));
+    UINT_8  spare       __attribute__ ((packed));
+    UINT_16  Year       __attribute__ ((packed));
 	UINT_8  Month       __attribute__ ((packed));
 	UINT_8  Day       __attribute__ ((packed));
 } GetTimeDateRes_t;

@@ -140,7 +140,6 @@ int main()
 		printf("Can not open comport\n");
 	}
 
-
 	memset(&blownFuseFault, 0, sizeof(blownFuseFault));
 	blownFuseFault.faultid = E_COLL_SHOE_FAULT;
 	blownFuseFault.loggerid = Protection;
@@ -183,7 +182,8 @@ void GetTimeDateFromPC (MaxResponse_t *Response)
 
 	myTime = localtime(&t);
 
-	ptr->Year = myTime->tm_year % 100;
+    ptr->Year = myTime->tm_year + 1900;
+    /* ptr->Year = myTime->tm_year % 100; */
 	ptr->Month = myTime->tm_mon + 1;
 	ptr->Day = myTime->tm_mday;
 	ptr->Hour = myTime->tm_hour;
@@ -204,7 +204,7 @@ void ReadClockFromPC(struct date_time_type *ptr)
 
 	myTime = localtime(&t);
 
-	ptr->year = myTime->tm_year - 100;
+	ptr->year = myTime->tm_year + 1900;
 	ptr->month = myTime->tm_mon + 1;
 	ptr->day = myTime->tm_mday;
 	ptr->hr = myTime->tm_hour;

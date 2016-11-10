@@ -379,7 +379,7 @@ void MessageManager(Header_t *PassedRequest)
 #else
 			debugPrintf ("Get Embedded Info from PC request\n");
 
-		    version_string = "BARTVC1100";
+		    version_string = "BARTVC1200";
 #endif
 		    strncpy( ((GetEmbeddedInfoRes_t *)&Response)->SoftwareVersion,
 					 (const char *)version_string, 41);
