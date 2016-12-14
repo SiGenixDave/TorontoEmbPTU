@@ -165,13 +165,13 @@ int main()
 		LogFault(Engineering, (struct minfaultpacket_t *)&wheelDiamCalcFault, sizeof(wheelDiamCalcFault));
 	}
 
-	//CreateTCPThread ();
+	CreateTCPThread ();
 	//CreateUIThread ();
 
 
 	while (1)
 	{
-		//Sleep (10);
+		Sleep (10);
 		PTUMain();
 	}
 }
