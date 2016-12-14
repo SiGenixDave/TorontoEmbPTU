@@ -36,6 +36,11 @@ void MySleep(int amountMs)
     Sleep (amountMs);
 }
 
+void os_t_delay (int amountMs)
+{
+    //Sleep (amountMs);
+}
+
 static DWORD WINAPI myTcpThread(void* threadParams)
 {
     htons(1234);
@@ -160,13 +165,13 @@ int main()
 		LogFault(Engineering, (struct minfaultpacket_t *)&wheelDiamCalcFault, sizeof(wheelDiamCalcFault));
 	}
 
-	CreateTCPThread ();
+	//CreateTCPThread ();
 	//CreateUIThread ();
 
 
 	while (1)
 	{
-		Sleep (10);
+		//Sleep (10);
 		PTUMain();
 	}
 }
