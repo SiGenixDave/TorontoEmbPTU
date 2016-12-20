@@ -608,7 +608,8 @@ void Get_self_test_packet_req(MaxResponse_t DATAFARTYPE *Response)
       //testExecute = FALSE;
       MySleep(400);
       var1++; var2+=2;
-      Respond_interactive(201, 1, "%d %d ", var1, var2, 0, 0, 0, 0, 0, 0, 0, 0);
+      Respond_interactive(201, 1, "%d %d %d %d %d %d %d %d %d %d ", var1, var2, var2, var2, var2, var2, var2, var2, var2, var2);
+      //Respond_interactive(201, 1, "%d ", var1, var2, 0, 0, 0, 0, 0, 0, 0, 0);
      //Respond_special(ST_SPECIAL_TEST_COMPLETE);
   }
 
