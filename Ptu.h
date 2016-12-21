@@ -558,6 +558,7 @@ typedef struct
 	UINT_8          DataTypes[WATCHSIZE]       __attribute__ ((packed));
 } GetWatchValuesRes_t;
 
+#ifdef FOUR_DIGIT_YEAR
 typedef struct
 {
 	DATAPACKETPROLOG
@@ -569,6 +570,18 @@ typedef struct
 	UINT_8  Month       __attribute__ ((packed));
 	UINT_8  Day       __attribute__ ((packed));
 } GetTimeDateRes_t;
+#else
+typedef struct
+{
+    DATAPACKETPROLOG
+    UINT_8  Hour       __attribute__ ((packed));
+    UINT_8  Minute       __attribute__ ((packed));
+    UINT_8  Second       __attribute__ ((packed));
+    UINT_8  Year       __attribute__ ((packed));
+    UINT_8  Month       __attribute__ ((packed));
+    UINT_8  Day       __attribute__ ((packed));
+} GetTimeDateRes_t;
+#endif
 
 typedef struct
 {

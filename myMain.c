@@ -145,6 +145,7 @@ int main()
 		printf("Can not open comport\n");
 	}
 
+#ifdef TOPC
 	memset(&blownFuseFault, 0, sizeof(blownFuseFault));
 	blownFuseFault.faultid = E_COLL_SHOE_FAULT;
 	blownFuseFault.loggerid = Protection;
@@ -156,7 +157,6 @@ int main()
 	wheelDiamCalcFault.faultid = E_WHEEL_DIAM_DIFF_CHECK;
 	wheelDiamCalcFault.loggerid = Velocity;
 
-
 	for (i = 0; i < 0x1000; i++)
 	{
 		blownFuseFault.ptuCarSpeed = i;
@@ -164,6 +164,7 @@ int main()
 		wheelDiamCalcFault.ptuCarSpeed = i + 10;
 		LogFault(Engineering, (struct minfaultpacket_t *)&wheelDiamCalcFault, sizeof(wheelDiamCalcFault));
 	}
+#endif
 
 	CreateTCPThread ();
 	//CreateUIThread ();
@@ -187,8 +188,11 @@ void GetTimeDateFromPC (MaxResponse_t *Response)
 
 	myTime = localtime(&t);
 
+#if FOUR_DIGIT_YEAR
     ptr->Year = myTime->tm_year + 1900;
-    /* ptr->Year = myTime->tm_year % 100; */
+#else
+    ptr->Year = myTime->tm_year % 100;
+#endif
 	ptr->Month = myTime->tm_mon + 1;
 	ptr->Day = myTime->tm_mday;
 	ptr->Hour = myTime->tm_hour;
