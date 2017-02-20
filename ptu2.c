@@ -379,7 +379,7 @@ void MessageManager(Header_t *PassedRequest)
 #else
 			debugPrintf ("Get Embedded Info from PC request\n");
 
-		    version_string = "BARTVC1200";
+		    version_string = "BARTVC1300";
 #endif
 		    strncpy( ((GetEmbeddedInfoRes_t *)&Response)->SoftwareVersion,
 					 (const char *)version_string, 41);
@@ -552,6 +552,12 @@ void MessageManager(Header_t *PassedRequest)
 			TransmitACK();
 			Exit_self_test_task_req();
 			break;
+
+		case SELF_TEST_COMM_WATCHDOG:
+		    GetSelfTestStatusForWatchdog(&Response);
+            break;
+
+
 #endif
 
 		case SET_FAULT_LOG:

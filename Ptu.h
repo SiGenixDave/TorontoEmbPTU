@@ -299,6 +299,7 @@ extern "C" {
 #define CHANGE_EVENT_LOG            52
 #define GET_EVENT_LOG               53
 #define GET_STREAM_FLAG             54
+#define SELF_TEST_COMM_WATCHDOG     60
 #define TERMINATECONNECTION			102
 
 
@@ -746,6 +747,12 @@ typedef struct
 	UINT_16 MaxTasks       __attribute__ ((packed));
 	UINT_16 MaxEvents       __attribute__ ((packed));
 } ChangeEventLogRes_t;
+
+typedef struct
+{
+    DATAPACKETPROLOG
+    UINT_8 SelfTestStatus       __attribute__ ((packed));
+} GetSelftestWatchdogRes_t;
 
 
 typedef union

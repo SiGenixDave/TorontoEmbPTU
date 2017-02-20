@@ -448,8 +448,8 @@ void Start_self_test_task_req(void)
    {
  	/* Speed or Power Request is present */
  	init_response.msg_mode = ST_MSG_MODE_SPECIAL;
-    init_response.test_id = ST_SPECIAL_ENTER;  // result in PTE code
-    // init_response.test_id = ST_SPECIAL_NO_ENTER;  // result in PTE code
+    //init_response.test_id = ST_SPECIAL_ENTER;  // result in PTE code
+    init_response.test_id = ST_SPECIAL_NO_ENTER;  // result in PTE code
  	init_response.result.type1.test_case = 3;     // reason in PTE code; modify based on the reason self test can't be entered
  	init_response.result.type1.num_of_vars = 0;
  	init_response.flags = 0;
@@ -560,6 +560,20 @@ void Self_test_cmd_req(Header_t *PassedRequest)
 }   /* end func Self_test_cmd_req */
 
 
+//DAS DAS DAS
+UINT_8 SelfTestStatus = 1;
+
+void GetSelfTestStatusForWatchdog(MaxResponse_t DATAFARTYPE *Response)
+{
+    GetSelftestWatchdogRes_t *res = (GetSelftestWatchdogRes_t *)Response;
+
+    res->SelfTestStatus = SelfTestStatus;
+
+    TransmitMessage((Header_t *)Response,
+                    (UINT_16)sizeof(GetSelftestWatchdogRes_t)   );
+}
+
+
 /****************************************************************************
 *
 * .b
@@ -608,8 +622,8 @@ void Get_self_test_packet_req(MaxResponse_t DATAFARTYPE *Response)
       //testExecute = FALSE;
       MySleep(400);
       var1++; var2+=2;
-      Respond_interactive(201, 1, "%d %d %d %d %d %d %d %d %d %d ", var1, var2, var2, var2, var2, var2, var2, var2, var2, var2);
-      //Respond_interactive(201, 1, "%d ", var1, var2, 0, 0, 0, 0, 0, 0, 0, 0);
+      //Respond_interactive(201, 1, "%d %d %d %d %d %d %d %d %d %d ", var1, var2, var2, var2, var2, var2, var2, var2, var2, var2);
+      Respond_interactive(201, 1, "%d ", var1, var2, 0, 0, 0, 0, 0, 0, 0, 0);
      //Respond_special(ST_SPECIAL_TEST_COMPLETE);
   }
 

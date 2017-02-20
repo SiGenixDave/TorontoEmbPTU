@@ -68,6 +68,15 @@ static void CreateTCPThread (void)
 struct flt_Blown_Collect_Fuse_Str blownFuseFault;
 struct fltWheelDiamCalcdiffCheckStr wheelDiamCalcFault;
 
+struct    cplgpushbtn_flt_str {
+          FAULTPACKETPROLOG
+          UINT_16             couplingPushBtn;
+} __attribute__ ((packed));
+struct cplgpushbtn_flt_str cplpushbtn;
+
+extern UINT_8 SelfTestStatus;
+
+
 static void UserInterfaceMain()
 {
 	int ch;
@@ -75,14 +84,26 @@ static void UserInterfaceMain()
 	ch = getchar();
 	switch (ch)
 	{
+	    case 'p':
+            LogFault(Propulsion, (struct minfaultpacket_t *)&cplpushbtn, sizeof(cplpushbtn));
+            break;
+
 		case 'b':
-			blownFuseFault.ptuCarSpeed = rand();
-			LogFault(Propulsion, (struct minfaultpacket_t *)&blownFuseFault, sizeof(blownFuseFault));
+			//blownFuseFault.ptuCarSpeed = rand();
+			//LogFault(Propulsion, (struct minfaultpacket_t *)&blownFuseFault, sizeof(blownFuseFault));
 			break;
 		case 'w':
-			wheelDiamCalcFault.ptuCarSpeed = rand();
-			LogFault(Engineering, (struct minfaultpacket_t *)&wheelDiamCalcFault, sizeof(wheelDiamCalcFault));
+			//wheelDiamCalcFault.ptuCarSpeed = rand();
+			//LogFault(Engineering, (struct minfaultpacket_t *)&wheelDiamCalcFault, sizeof(wheelDiamCalcFault));
 			break;
+        case 'S':
+            SelfTestStatus = 1;
+            printf("---------------------- IN self test ---------------------\n");
+            break;
+        case 's':
+            SelfTestStatus = 0;
+            printf("---------------------- OUT self test -------------------\n");
+            break;
 	}
 	fflush(stdin);
 }
@@ -157,17 +178,25 @@ int main()
 	wheelDiamCalcFault.faultid = E_WHEEL_DIAM_DIFF_CHECK;
 	wheelDiamCalcFault.loggerid = Velocity;
 
-	for (i = 0; i < 0x1000; i++)
+	for (i = 0; i < 2; i++)
 	{
 		blownFuseFault.ptuCarSpeed = i;
 		LogFault(Propulsion, (struct minfaultpacket_t *)&blownFuseFault, sizeof(blownFuseFault));
 		wheelDiamCalcFault.ptuCarSpeed = i + 10;
 		LogFault(Engineering, (struct minfaultpacket_t *)&wheelDiamCalcFault, sizeof(wheelDiamCalcFault));
 	}
+#else
+
+    memset(&cplpushbtn, 0, sizeof(cplpushbtn));
+    cplpushbtn.faultid = 0;
+    cplpushbtn.loggerid = 0;
+    LogFault(Propulsion, (struct minfaultpacket_t *)&cplpushbtn, sizeof(cplpushbtn));
+    //LogFault(Engineering, (struct minfaultpacket_t *)&wheelDiamCalcFault, sizeof(wheelDiamCalcFault));
+
 #endif
 
 	CreateTCPThread ();
-	//CreateUIThread ();
+	CreateUIThread ();
 
 
 	while (1)
@@ -213,7 +242,12 @@ void ReadClockFromPC(struct date_time_type *ptr)
 
 	myTime = localtime(&t);
 
+#ifdef TOPC
 	ptr->year = myTime->tm_year + 1900;
+#else
+    ptr->year = myTime->tm_year % 100;
+#endif
+
 	ptr->month = myTime->tm_mon + 1;
 	ptr->day = myTime->tm_mday;
 	ptr->hr = myTime->tm_hour;

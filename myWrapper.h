@@ -53,8 +53,12 @@ struct date_time_type  {
   UINT_8   sec;                   /* seconds */
   UINT_8 month;					  /* month */
   UINT_8 day;                     /* day */
+#ifdef TOPC
   UINT_16 year;                    /* year */
   UINT_8 spare;                     /* day */
+#else
+  UINT_8 year;
+#endif
 };
 
 
