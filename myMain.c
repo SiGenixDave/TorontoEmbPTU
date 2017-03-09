@@ -65,14 +65,22 @@ static void CreateTCPThread (void)
         &threadDescriptor);     /* returns the thread identifier. */
 }
 
+// TOPC
 struct flt_Blown_Collect_Fuse_Str blownFuseFault;
 struct fltWheelDiamCalcdiffCheckStr wheelDiamCalcFault;
-
+// BART
 struct    cplgpushbtn_flt_str {
           FAULTPACKETPROLOG
           UINT_16             couplingPushBtn;
 } __attribute__ ((packed));
 struct cplgpushbtn_flt_str cplpushbtn;
+// R188
+#define   E_BATTERY_VOLTAGE_BAD 2
+struct    fault_battery_voltage_str {
+          FAULTPACKETPROLOG
+          INT_16              vbatt;
+};
+struct fault_battery_voltage_str lowBattEvent;
 
 extern UINT_8 SelfTestStatus;
 
@@ -85,7 +93,10 @@ static void UserInterfaceMain()
 	switch (ch)
 	{
 	    case 'p':
-            LogFault(Propulsion, (struct minfaultpacket_t *)&cplpushbtn, sizeof(cplpushbtn));
+            // BART
+	        // LogFault(Propulsion, (struct minfaultpacket_t *)&cplpushbtn, sizeof(cplpushbtn));
+            // R188
+	        LogFault(Propulsion, (struct minfaultpacket_t *)&lowBattEvent, sizeof(lowBattEvent));
             break;
 
 		case 'b':
@@ -185,14 +196,18 @@ int main()
 		wheelDiamCalcFault.ptuCarSpeed = i + 10;
 		LogFault(Engineering, (struct minfaultpacket_t *)&wheelDiamCalcFault, sizeof(wheelDiamCalcFault));
 	}
-#else
+#elif BART
 
     memset(&cplpushbtn, 0, sizeof(cplpushbtn));
     cplpushbtn.faultid = 0;
     cplpushbtn.loggerid = 0;
     LogFault(Propulsion, (struct minfaultpacket_t *)&cplpushbtn, sizeof(cplpushbtn));
     //LogFault(Engineering, (struct minfaultpacket_t *)&wheelDiamCalcFault, sizeof(wheelDiamCalcFault));
-
+#else
+    memset(&lowBattEvent, 0, sizeof(lowBattEvent));
+    lowBattEvent.faultid = E_BATTERY_VOLTAGE_BAD;
+    lowBattEvent.loggerid = 0;
+    LogFault(Propulsion, (struct minfaultpacket_t *)&lowBattEvent, sizeof(lowBattEvent));
 #endif
 
 	CreateTCPThread ();
@@ -201,7 +216,7 @@ int main()
 
 	while (1)
 	{
-		Sleep (10);
+		//Sleep (10);
 		PTUMain();
 	}
 }
@@ -217,7 +232,7 @@ void GetTimeDateFromPC (MaxResponse_t *Response)
 
 	myTime = localtime(&t);
 
-#if FOUR_DIGIT_YEAR
+#ifndef FOUR_DIGIT_YEAR
     ptr->Year = myTime->tm_year + 1900;
 #else
     ptr->Year = myTime->tm_year % 100;
@@ -242,7 +257,7 @@ void ReadClockFromPC(struct date_time_type *ptr)
 
 	myTime = localtime(&t);
 
-#ifdef TOPC
+#ifndef TOPC
 	ptr->year = myTime->tm_year + 1900;
 #else
     ptr->year = myTime->tm_year % 100;
@@ -253,5 +268,6 @@ void ReadClockFromPC(struct date_time_type *ptr)
 	ptr->hr = myTime->tm_hour;
 	ptr->min = myTime->tm_min;
 	ptr->sec = myTime->tm_sec;
+
 }
 

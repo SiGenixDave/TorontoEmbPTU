@@ -256,7 +256,10 @@ extern "C" {
 
 
 /*  Defines for the PTU communications protocol.                            */
-#define WATCHSIZE                   40
+// BART TOPC
+//#define WATCHSIZE                   40
+// R188
+#define WATCHSIZE                   20
 
 #define SET_WATCH_ELEMENT           2
 #define SET_WATCH_ELEMENTS          3
@@ -559,7 +562,7 @@ typedef struct
 	UINT_8          DataTypes[WATCHSIZE]       __attribute__ ((packed));
 } GetWatchValuesRes_t;
 
-#ifdef FOUR_DIGIT_YEAR
+#ifndef FOUR_DIGIT_YEAR
 typedef struct
 {
 	DATAPACKETPROLOG

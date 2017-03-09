@@ -409,7 +409,7 @@ static void PtuSerialStateMachine (INT16 inByte)
                 m_PtuSerialState = WAIT_FOR_DPP;
                 m_DppIndex = 0;
                 m_PtuNoCommTimer = NO_COMM_DPP_TIMEOUT;
-                printf ("Sync SOM detected\n");
+                //printf ("Sync SOM detected\n");
             }
             break;
 
@@ -417,11 +417,11 @@ static void PtuSerialStateMachine (INT16 inByte)
             headerPointer[m_DppIndex] = (UINT8) (inByte & 0xFF);
             tputc (PTUCHANNEL, headerPointer[m_DppIndex]);
             m_DppIndex++;
-            printf ("Header Byte %d\n", m_DppIndex);
+            //printf ("Header Byte %d\n", m_DppIndex);
 
             if (m_DppIndex >= sizeof(Header_t))
             {
-                printf ("Header Complete\n");
+                //printf ("Header Complete\n");
                 headerComplete = TRUE;
                 m_PtuNoCommTimer = 0;
             }
@@ -440,7 +440,7 @@ static void PtuSerialStateMachine (INT16 inByte)
                     m_PtuNoCommTimer = 0;
                     m_PtuSerialState = WAIT_FOR_SOM;
                     m_DppIndex = 0;
-                    printf ("End of Msg from 1\n");
+                    //printf ("End of Msg from 1\n");
                 }
 
             }
@@ -461,7 +461,7 @@ static void PtuSerialStateMachine (INT16 inByte)
                 m_PtuNoCommTimer = 0;
                 m_PtuSerialState = WAIT_FOR_SOM;
                 m_DppIndex = 0;
-                printf ("End of Msg from 2\n");
+                //printf ("End of Msg from 2\n");
             }
             break;
 

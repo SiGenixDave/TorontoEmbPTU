@@ -278,7 +278,7 @@ void LoadFaultHeaderWithoutTime(struct minfaultpacket_t *passedfault)
 void LoadFaultHeader(struct minfaultpacket_t *passedfault)
 {
 #ifdef TEST_ON_PC
-	ReadClockFromPC((struct date_time_type *)(&passedfault->TimeStamp));
+    ReadClockFromPC((struct date_time_type *)(&passedfault->TimeStamp));
 #else
   /* Store the time of the fault */
   Read_clock((struct date_time_type *)(&passedfault->TimeStamp), PTU_TIME);

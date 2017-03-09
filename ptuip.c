@@ -242,6 +242,8 @@ void TCP_Init(void)
 void TCP_Main(void)
 {
     INT_16 activity, maxSd;
+    int randomDelay;
+
 
 	maxSd = TCPPopulateSocketDescriptorList ();
 
@@ -255,7 +257,10 @@ void TCP_Main(void)
     /* DAS ----------------------- IMPORTANT REMOVE AFTER TEST --------------------------------------
      * This Sleep() was inserted to create the Communication timeout when switching between event logs
      */
-    //Sleep (750);
+    randomDelay = rand();
+    randomDelay %= 6;
+    /* Insert random response delay between 0 & 500 msecs in increments of 100 msecs */
+    Sleep (randomDelay * 100);
 
     debugPrintf ("Activity = %d, mTimer.sec = %ld, mTimer.usec = %ld, err = %d\n",
     		   activity, mTimer.tv_sec, mTimer.tv_usec, errno);
@@ -275,6 +280,10 @@ void TCP_Main(void)
     }
     else
     {
+        if (activity > 1)
+        {
+            printf("activity > 1\n");
+        }
     	/* Scan for any new clients */
     	TCPScanForNewConnections ();
     	/* Service existing client connection(s) */
@@ -848,7 +857,7 @@ static void TCPServiceIncomingSocketData (void)
 				else
 				{
 					/* Close the socket and mark as 0 in list for reuse */
-					os_ip_shutdown (sd, 2);
+				    os_ip_shutdown (sd, 2);
 					os_ip_close (sd);
 					mServers[socketCnt].clientSocketId[i] = 0;
 					if (mServers[socketCnt].closeClientCallback != NULL)

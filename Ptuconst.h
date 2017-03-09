@@ -15,4 +15,7 @@
 
 #define CHARTDACLOCATION        0x8004
 
-#define WATCHSIZE               40
+// BART TOPC
+//#define WATCHSIZE               40
+// R188
+#define WATCHSIZE               20

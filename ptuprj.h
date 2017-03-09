@@ -45,7 +45,11 @@ extern "C" {
 #define ASYNC_SOM       ';'
 #define MOTOROLA_SOM    'S'
 
-#define WATCHSIZE                   40
+
+// BART R179 TOPC
+//#define WATCHSIZE                   40
+// R188
+#define WATCHSIZE                   20
 
 /* LILLE - AC DRIVE PROPULSION */
 #ifdef LILLE
