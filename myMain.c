@@ -196,7 +196,7 @@ int main ()
     printf ("DAS\n");
 
     // "0" is com port 1
-    if (RS232_OpenComport (6, 19200, rs232mode))
+    if (RS232_OpenComport (8, 19200, rs232mode))
     {
         printf ("Can not open comport\n");
     }
