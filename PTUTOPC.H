@@ -1,4 +1,4 @@
-#define   WATCHWINDOWTITLE    "BART Propulsion and Friction Brake"
-#define   IDENTIFIERSTRING    "BART"
+#define   WATCHWINDOWTITLE    "MAPA Test"
+#define   IDENTIFIERSTRING    "MAPA"
 
 #define   NUMDEFINEDVARS      1173

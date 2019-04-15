@@ -562,7 +562,7 @@ typedef struct
 	UINT_8          DataTypes[WATCHSIZE]       __attribute__ ((packed));
 } GetWatchValuesRes_t;
 
-#ifndef FOUR_DIGIT_YEAR
+#ifdef FOUR_DIGIT_YEAR
 typedef struct
 {
 	DATAPACKETPROLOG

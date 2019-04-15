@@ -28,19 +28,7 @@
 #define   FAULTPACKET24       INT_32              ptuLineVolt1;FAULTPACKET25       
 #define   FAULTPACKET25       INT_32              ptuLineVolt2;
 #define   FAULTPACKETPROLOG   FAULTPACKET1
-#elif BART
-#define   FAULTPACKET1        UINT_16             faultid;FAULTPACKET2
-#define   FAULTPACKET2        UINT_16             loggerid;FAULTPACKET3
-#define   FAULTPACKET3        UINT_32             index;FAULTPACKET4
-#define   FAULTPACKET4        UINT_8              TimeStamp[6];FAULTPACKET5
-#define   FAULTPACKET5        UINT_16             DataLogNumber;FAULTPACKET6
-#define   FAULTPACKET6        INT_32              Odometer;FAULTPACKET7
-#define   FAULTPACKET7        INT_32              CarSpeed_mph;FAULTPACKET8
-#define   FAULTPACKET8        UINT_8              CarType;FAULTPACKET9
-#define   FAULTPACKET9        UINT_8              TruckType;
-#define   FAULTPACKETPROLOG   FAULTPACKET1
-#else
-/* R188 */
+#elif R188
 #define   FAULTPACKET1        UINT_16             faultid;FAULTPACKET2
 #define   FAULTPACKET2        UINT_16             loggerid;FAULTPACKET3
 #define   FAULTPACKET3        UINT_32             index;FAULTPACKET4
@@ -50,6 +38,22 @@
 #define   FAULTPACKET7        UINT_32             odometer;FAULTPACKET8
 #define   FAULTPACKET8        UINT_32             car_speed;FAULTPACKET9
 #define   FAULTPACKET9        UINT_16             mc_mode_request;
+#define   FAULTPACKETPROLOG   FAULTPACKET1
+#else
+/* BART */
+#define   FAULTPACKET1        UINT_16             faultid;FAULTPACKET2
+#define   FAULTPACKET2        UINT_16             loggerid;FAULTPACKET3
+#define   FAULTPACKET3        UINT_32             index;FAULTPACKET4
+#define   FAULTPACKET4        UINT_8              TimeStamp[6];FAULTPACKET5
+#define   FAULTPACKET5        UINT_16             DataLogNumber;FAULTPACKET6
+#define   FAULTPACKET6        INT_32              Odometer;FAULTPACKET7
+#define   FAULTPACKET7        INT_32              CarSpeed_mph;FAULTPACKET8
+#define   FAULTPACKET8        UINT_8              CarType;FAULTPACKET9
+#define   FAULTPACKET9        UINT_8              TruckType;FAULTPACKET10
+#define   FAULTPACKET10       INT_32              rateRequest;FAULTPACKET11
+#define   FAULTPACKET11       UINT_16             direction;FAULTPACKET12
+#define   FAULTPACKET12       UINT_16             operationMode;FAULTPACKET13
+#define   FAULTPACKET13       UINT_16             runningMode;
 #define   FAULTPACKETPROLOG   FAULTPACKET1
 
 

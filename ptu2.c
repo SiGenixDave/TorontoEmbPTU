@@ -170,8 +170,9 @@ void MessageManager(Header_t *PassedRequest)
 	SignedUnion_t           TempSignedUnion;
 	UINT_16                 NumberOfBytes;
 	UINT_8                  *version_string;
+static UINT_16              testCounter;
 
-	char carId[] = {"1234" "\0" "3456"};
+	char carId[] = {"d1234" "\0" "3456"};
 
 	/*  Set the response type to the request type. */
 	Response.PacketType = PassedRequest->PacketType;
@@ -379,8 +380,11 @@ void MessageManager(Header_t *PassedRequest)
 #else
 			debugPrintf ("Get Embedded Info from PC request\n");
 
-            version_string = "BARTVC1300";
-            //version_string = "PCOMREV017";
+            version_string = "CTPAVC0206";
+            version_string = "PCOMREV017";
+            version_string = "300RVC0002";
+            version_string = "BARTVC0803";
+            version_string = "MAPA0021";
 #endif
 		    strncpy( ((GetEmbeddedInfoRes_t *)&Response)->SoftwareVersion,
 					 (const char *)version_string, 41);
@@ -562,8 +566,7 @@ void MessageManager(Header_t *PassedRequest)
 #endif
 
 		case SET_FAULT_LOG:
-			TransmitACK();
-
+	        TransmitACK();
 			SetFaultLogger( GlobalFaultLog,
 							((SetFaultLogReq_t *)PassedRequest)->TargetState);
 

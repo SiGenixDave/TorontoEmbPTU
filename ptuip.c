@@ -194,6 +194,7 @@ void TCP_Init(void)
     TCPInitConnections();
     /* Currently the PTU is the only server socket */
     TCPCreateServerSocket (SERVER_PORT_NUM, TCPServerPTUCallback, TCPPtuInsertClientInfo, TCPPtuRemoveClientInfo, TRUE);
+    TCPCreateServerSocket (5002, TCPServerPTUCallback, TCPPtuInsertClientInfo, TCPPtuRemoveClientInfo, TRUE);
 
     for (i = 0; i < MAX_CLIENTS_PER_SERVER; i++)
     {
@@ -254,6 +255,7 @@ void TCP_Main(void)
      * or an existing client has sent a request. */
     activity = os_ip_select (maxSd + 1, &mReadfds, NULL, NULL, mTimerPtr);
 
+#if 0
     /* DAS ----------------------- IMPORTANT REMOVE AFTER TEST --------------------------------------
      * This Sleep() was inserted to create the Communication timeout when switching between event logs
      */
@@ -264,7 +266,7 @@ void TCP_Main(void)
 
     debugPrintf ("Activity = %d, mTimer.sec = %ld, mTimer.usec = %ld, err = %d\n",
     		   activity, mTimer.tv_sec, mTimer.tv_usec, errno);
-
+#endif
 
     if (activity == 0)
     {

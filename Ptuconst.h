@@ -1,7 +1,7 @@
 #define __ptuconst__    1     /* comment */
 
 
-#define PTUCHANNEL              0
+#define PTUCHANNEL              6
 
 #define MAXNUMOFFAULTS          300
 #define SIZEOFFAULTQUEUE        8000

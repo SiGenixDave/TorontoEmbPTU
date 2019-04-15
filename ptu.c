@@ -351,7 +351,7 @@ typedef enum
 #define OS_DELAY                        20
 #define NO_COMM_DPP_TIMEOUT             (1000/OS_DELAY)
 #define NO_COMM_PAYLOAD_TIMEOUT         (2000/OS_DELAY)
-#define MAX_CONSECUTIVE_EOFS            1000
+#define MAX_CONSECUTIVE_EOFS            5000
 
 static UINT32 m_PtuNoCommTimer;
 static PtuSerialState m_PtuSerialState = WAIT_FOR_SOM;
@@ -407,9 +407,10 @@ static void PtuSerialStateMachine (INT16 inByte)
                  * ready to receive a smart PTU packet */
                 tputc (PTUCHANNEL, THE_SOM);
                 m_PtuSerialState = WAIT_FOR_DPP;
+                printf ("Rx: ");
                 m_DppIndex = 0;
                 m_PtuNoCommTimer = NO_COMM_DPP_TIMEOUT;
-                //printf ("Sync SOM detected\n");
+                // printf ("Sync SOM detected\n");
             }
             break;
 
@@ -417,10 +418,12 @@ static void PtuSerialStateMachine (INT16 inByte)
             headerPointer[m_DppIndex] = (UINT8) (inByte & 0xFF);
             tputc (PTUCHANNEL, headerPointer[m_DppIndex]);
             m_DppIndex++;
-            //printf ("Header Byte %d\n", m_DppIndex);
+            // printf ("Header Byte %d\n", m_DppIndex);
+            printf ("%02X ", inByte);
 
             if (m_DppIndex >= sizeof(Header_t))
             {
+                printf (" Header... ");
                 //printf ("Header Complete\n");
                 headerComplete = TRUE;
                 m_PtuNoCommTimer = 0;
@@ -449,6 +452,7 @@ static void PtuSerialStateMachine (INT16 inByte)
         case WAIT_FOR_REMAINDER_OF_MSG_FROM_PC:
             if (Request.PacketLength != m_DppIndex)
             {
+                printf ("%02X ", inByte);
                 headerPointer[m_DppIndex] = (UINT8) (inByte & 0xFF);
                 tputc (PTUCHANNEL, headerPointer[m_DppIndex]);
                 m_DppIndex++;
@@ -456,6 +460,7 @@ static void PtuSerialStateMachine (INT16 inByte)
 
             if (m_DppIndex >= Request.PacketLength)
             {
+                printf ("   Payload\n");
                 ComDevice = RS232;
                 MessageManager ((Header_t *) &Request);
                 m_PtuNoCommTimer = 0;
@@ -536,11 +541,14 @@ void TransmitMessage (Header_t *PassedResponse, UINT_16 PassedMessageLength)
 
             BytePointer = (UINT_8 *) PassedResponse;
 
+            printf("Tx: ");
             /*  Send every byte in PassedResponse out the serial port. */
             for (ByteIndex = 0; ByteIndex < PassedMessageLength; ByteIndex++)
             {
+                printf("%02X ",*(BytePointer + ByteIndex));
                 tputc (PTUCHANNEL, *(BytePointer + ByteIndex));
             }
+            printf("\n");
             break;
 
         case TCPIP:
